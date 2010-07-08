@@ -23,6 +23,49 @@
 #    Perform 2 Phase rename.
 #
 
+=head1 renumFiles.pl Version (0.0.1)
+
+    Renumber Files (Safely) script.
+
+=head1 SYNOPSIS
+
+  usage: renumFiles.pl [-h|-t|-v-|-x] -f [regexpWith2BackRefs] -r [br:n1|n1-n2:nn[!]] [-d [ZeroPaddedLen]]
+
+  -f [regexpWith2BackRefs]
+  A regexp that matches to a file in the current directory and splits it into as many as 3 back-reference values where at least one of the back-reference values is always an integer field, which will be renumbered.
+  Using this option alone will list the files that match the regexp in the current directory.
+
+  -r [br:n1|n1-|n1-n2:nn[!]]
+      br: The back-reference index whos value will change to nn (which increments, or which is static).
+      n1: The Only value that will change.
+     n1-: Change all values from n1 and greater.
+   n1-n2: Change all values from n1 to n2.
+      nn: Change n1 to this new value (nn).
+     nn!: Don't increment nn relative to n1-n2. nn stays static.
+
+  -t Perform a test only.
+  -v Turn on verbose mode.
+  -x Run without first testing. But, if a file over-write is detected, rename operations are undone. Leaving the files and file names in thier original state.
+  -d [ZeroPaddedLen]
+  Format the new number with zero padding and the given fixed length.
+
+=head1 DESCRIPTION
+
+  The script performs flexible renumbering and resequencing of numberic values embeded into filenames.
+  It performs safe rename operations by first simulating the rename process using all of the file names in the current directory, but only against a hash, so that actual renames are not done. If a file over-write condition is encountered, the acutal file rename process is not performed.
+  If a file over-write condition is detected during the actual file renaming process, the process is aborted at that point, and all file renames done to that point are un-done.
+
+=head1 AUTHOR - David Sidlo
+
+    dsidlo@gmail.com
+
+=head1 APPENDIX
+
+  Todo: Add [--resequence | -s] option
+
+=cut
+
+
 use Getopt::Long;
 
 use strict;
@@ -56,7 +99,7 @@ renumFiles.pl - ReNumber Files
   using the -t switch. By default, the [--test | -t] option performs verbose output about
   what file rename operations would be performed.
 
-  usage: renumFiles.pl [-h|-t|-v] -f [regexpWith2BackRefs] -r [br:n1|n1-n2:nn[!]]
+  usage: renumFiles.pl [-h|-t|-v-|-x] -f [regexpWith2BackRefs] -r [br:n1|n1-n2:nn[!]] [-d [ZeroPaddedLen]]
 
   Requires that the first argument, be defined as a pattern that matches to
   a set of file-names of interest, where the pattern returns upto 3 back-reference
