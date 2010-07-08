@@ -11,7 +11,7 @@ use strict;
 my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt);
 
 my $retGetOpts = GetOptions ( "fileRegExp|f=s" => \$fnPat,   # The file name regexp.
-			      "reNums|r=s"     => \$reNums,  # br:n1|n1-n2:n3
+			      "reNums|r=s"     => \$reNums,  # br:n1|n1-n2:nn
 			      "help|h"         => \$helpOpt, # Force Sequence Option
 			      "test|t"         => \$testOpt, # Only do a test
 			      "format|d=s"     => \$fmtOpt,  # Use a format string
@@ -24,12 +24,17 @@ if ($helpOpt) {
 
 renumFiles.pl - ReNumber Files
 
-  Renumbers and renames numeric portions of files in the current directory.
+  Safely renumbers and renames numeric portions of file(s) name in the current directory.
+  Watches for filename overlap/overwrite conditions what would result in a loss of a file
+  and undoes any changes if there is a chance that data-loss might occur.
+  You may test/simulate the rename process using the -t switch to verify that the
+  rename process works as you would expect before actually running it.
+  
 
-  usage: renumFiles.pl [-h|-t|-v] -f [regexpWith2BackRefs] -r [br:n1|n1-n2:n3]
+  usage: renumFiles.pl [-h|-t|-v] -f [regexpWith2BackRefs] -r [br:n1|n1-n2:nn]
 
-  Requires that the first argument, be defined as a pattern that matched to
-  a set of files names of interest, where the pattern returns 3 back-reference
+  Requires that the first argument, be defined as a pattern that matches to
+  a set of file-names of interest, where the pattern returns upto 3 back-reference
   values. The parameter br is the Back Reference value which will be changed
   into a new number.
 
@@ -40,34 +45,35 @@ renumFiles.pl - ReNumber Files
     |              +--------: BackRef \$2 -> \$fn2
     +-----------------------: BackRef \$1 -> \$fn3
 
+  In the example above...
   The 2nd back-reference value returned must be a numeric value.
   This numberic value is compared against n1. And, if there is a match, n1 is
   substitued with the value of n2. And the new file name is built...
 
   \$newFn = \$fn1.(\$fn+(n2-n1)).\$fn3;
 
-  The --reNum|-r parameter consists of... [br:n1|n1-n2:n3]
+  The --reNum|-r parameter consists of... [br:n1|n1-n2:nn]
 
   br: Back Reference value that is the numberic value that will be changed.
   n1: The first numeric value that will be changed.
   n2: The last  numeric value that will be changed.
-  n3: The numberic value that n1 will be changed to.
-      Subsequent values will be changed to n2+(n3-n1) incrementing the value
-      by the difference between n1 and n3.
+  nn: The numberic value that n1 will be changed to.
+      Subsequent values will be changed to n2+(nn-n1) incrementing the value
+      by the difference between n1 and nn.
 
   ** If n1 is specified without n2, all values from n1 and greater are changed
      to the new value. 
-     If n1 and n2 exist with a dash between them all values between n1 and n2
-     inclusive are changed to a new value.
+     If n1 and n2 exist with a dash between them all values between and including
+     n1 and n2 are changed to a new value.
 
   example: renumFiles.pl -f '(mwlog\\.wfiebj)(\\d+)(\\..*)' -r 2:5:15 
 
-  Above, only n1 and n3 are specified as options, all $2 back-reference values that
+  Above, only n1 and nn are specified as options, all \$2 back-reference values that
   match 5 and above will be incrmented by 10. 
 
   example: renumFiles.pl -f '(mwlog\\.wfiebj)(\\d+)(\\..*)' -r 2:5-7:15
 
-  Above, n1-n2 and n3 are specified as options, only $2 back-reference values that
+  Above, n1-n2 and nn are specified as options, only \$2 back-reference values that
   match 5 thru 7 are incrmented by 10. 
 
   The rename process watches for file name overlap conditions what would cause
@@ -97,15 +103,15 @@ _EOF_
 
 }
 
-my ($br, $n1, $n2, $n3);
-($br,$n1,$n3) = split(':', $reNums);
+my ($br, $n1, $n2, $nn);
+($br,$n1,$nn) = split(':', $reNums);
 
 if ($n1 =~ m/\-/) {
     ($n1,$n2) = split('-', $n1);
 }
 
-if ( ($br !~ /\d+/) || ($n1 !~ /\d+/) || ($n2 !~ /(\d+|)/) || ($n3 !~ /\d+/) ) {
-    die "Renumber Values Must be Integers! [br:n1|n1-n2:n3]\n";
+if ( ($br !~ /\d+/) || ($n1 !~ /\d+/) || ($n2 !~ /(\d+|)/) || ($nn !~ /\d+/) ) {
+    die "Renumber Values Must be Integers! [br:n1|n1-n2:nn]\n";
 }
 
 if (($br > 3) || ($br < 1)) {
@@ -113,10 +119,10 @@ if (($br > 3) || ($br < 1)) {
 }
 
 if ($n2) {
-    die "Parameter Error [n1-n2:n3] n2 must be greater than n1!\n" if ($n2 <= $n1);
+    die "Parameter Error [n1-n2:nn] n2 must be greater than n1!\n" if ($n2 <= $n1);
 }
 
-my $nDiff = $n3 - $n1;
+my $nDiff = $nn - $n1;
 
 opendir(my $DF, "./") || die "Could not opendir './'!\n";
 my @allfiles = readdir($DF);
@@ -173,7 +179,7 @@ if ($testOpt) {
 		    print "Test: Renamed $fn to $newFn\n";
 		} else {
 		    # Renaming this file requires 2 stages to eliminate file overwrites.
-		    print "Test: Renamed $fn to $newFn (Using Scheme2)\n";
+		    print "Test: Renaming $fn to $newFn requires a 2-Phase Rename.\n";
 		    $rn2{$fn} = $newFn;
 		    if (($xVal < $n1) && ($xVal >$n2)) {
 			print "\nTest: *** Rename would be aborted because files outside of the renamed range would be lost! ($newFn)\n";
@@ -262,6 +268,7 @@ foreach my $fn (sort (grep m/${fnPat}/, @allfiles)) {
 		&verbose("Renamed $fn to $newFn\n");
 	    } else {
 		# Renaming this file requires 2 stages to eliminate file overwrites.
+		&verbose("Renaming $fn to $newFn requires a 2-Phase Rename.\n");
 		$rn2{$fn} = $newFn;
 		if (($xVal < $n1) && ($xVal >$n2)) {
 		    print "\n*** Rename aborted because files outside of the renamed range would be lost! ($newFn)\n";
