@@ -4,38 +4,19 @@
 # Renumber files.
 #
 
-#
-# ToDo:
-# - Change Option handlining.
-# - Be default, always test befor running,
-#   Option --run-only | -x stops test before running.
-# - br:n1:nn Update only 1 file.
-# - br:n1-:nn Update only n1 and above.
-# - br:n1-n2:nn! Update n1 to n2 with fixed value nn.
-# - --resequence | -s 
-#   br:10-100:3  files: 10,20,50,100
-#               result:  3, 4, 5,  6
-#
-# ** Resequencing
-#    Capture files that will be renamed.
-#    Sort by current numbers.
-#    Create new sequence values and new fileName for current fileNames.
-#    Perform 2 Phase rename.
-#
-
 =head1 renumFiles.pl Version (0.0.1)
 
     Renumber Files (Safely) script.
 
 =head1 SYNOPSIS
 
-  usage: renumFiles.pl [-h|-t|-v-|-x] -f [regexpWith2BackRefs] -r [br:n1|n1-n2:nn[!]] [-d [ZeroPaddedLen]]
+  usage: renumFiles.pl [-h|-t|-v-|-s|-x] -f [regexpWith2BackRefs] -r [br:n1|n1-n2:nn[!]] [-d [ZeroPaddedLen]]
 
-  -f [regexpWith2BackRefs]
+  -filePat|-f [regexpWith2BackRefs]
   A regexp that matches to a file in the current directory and splits it into as many as 3 back-reference values where at least one of the back-reference values is always an integer field, which will be renumbered.
   Using this option alone will list the files that match the regexp in the current directory.
 
-  -r [br:n1|n1-|n1-n2:nn[!]]
+  -reNum|-r [br:n1|n1-|n1-n2:nn[!]]
       br: The back-reference index whos value will change to nn (which increments, or which is static).
       n1: The Only value that will change.
      n1-: Change all values from n1 and greater.
@@ -43,9 +24,18 @@
       nn: Change n1 to this new value (nn).
      nn!: Don't increment nn relative to n1-n2. nn stays static.
 
-  -t Perform a test only.
-  -v Turn on verbose mode.
-  -x Run without first testing. But, if a file over-write is detected, rename operations are undone. Leaving the files and file names in thier original state.
+  --test|-t 
+  Perform a test only.
+
+  --verbose|-v
+  Turn on verbose mode.
+
+  --reSeq|-s
+  Resequence the numbers (n1-n2) begining with nn such that the new values are contiguous.
+
+  --run-only|-x
+  Run without first testing. But, if a file over-write is detected, rename operations are undone. Leaving the files and file names in thier original state.
+
   -d [ZeroPaddedLen]
   Format the new number with zero padding and the given fixed length.
 
@@ -61,7 +51,6 @@
 
 =head1 APPENDIX
 
-  Todo: Add [--resequence | -s] option
 
 =cut
 
@@ -70,12 +59,13 @@ use Getopt::Long;
 
 use strict;
 
-my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt, $roOpt);
+my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt, $roOpt, $seqopt);
 
-my $retGetOpts = GetOptions ( "fileRegExp|f=s" => \$fnPat,   # The file name regexp.
+my $retGetOpts = GetOptions ( "filePat|f=s" => \$fnPat,   # The file name regexp.
 			      "reNums|r=s"     => \$reNums,  # br:n1|n1-n2:nn
 			      "format|d=s"     => \$fmtOpt,  # Use a format string
-			      "help|h"         => \$helpOpt, # Force Sequence Option
+			      "reSeq|s"        => \$seqOpt,  # Force Sequence Option
+			      "help|h"         => \$helpOpt, # Output help
 			      "test|t"         => \$testOpt, # Only do a test
 			      "verbose|v"      => \$verbOpt, # Verbose Output
 			      "run-only|x"     => \$roOpt,   # Run Only. No test before running 
@@ -106,7 +96,7 @@ renumFiles.pl - ReNumber Files
   values. The parameter br is the Back Reference value which will be changed
   into a new number.
 
-  By only supplying the [--fileRegExp | -f] option and a file pattern, you can test that
+  By only supplying the [--filePat | -f] option and a file pattern, you can test that
   your file pattern is picking up the files that you expect to rename. And, you can the
   how the file name splits up into its back-references.
 
@@ -173,6 +163,8 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
   --help | -h
   Output this help text.
 
+  --reSeq|-s
+  Resequence the numbers (n1-n2) begining with nn such that the new values are contiguous.
 
   --test | -t
   Test the renumbering/renaming process against the filenames in the current directory.
@@ -243,6 +235,10 @@ my @allfiles = readdir($DF);
 
 my (%rn2, %rn3);
 my @rnDone;
+my %rsFn;
+my %sqFn;
+my @procFiles;
+
 
 if ($testOpt) {
     $verbOpt = 1;
@@ -256,7 +252,61 @@ if ($testOpt || (!$roOpt)) {
 	$testRns{$fn} = $fn;
     }
 
-    foreach my $fn (sort (grep m/${fnPat}/, @allfiles)) {
+    if ($seqOpt) {
+	foreach my $fn (sort (grep m/${fnPat}/, @allfiles)) {
+	    my $ln = $fn;
+	    # print "> $fn\n";
+	    if ($ln =~ m/${fnPat}/) {
+		my $fn1 = $1;
+		my $fn2 = $2;
+		my $fn3 = $3;
+		die "The Filename RegExp must return at least 1 Back Reference.\n" if (($br == 1) && ($fn1 eq ''));
+		die "The Filename RegExp must return at least 2 Back Reference.\n" if (($br == 2) && ($fn2 eq ''));
+		die "The Filename RegExp must return at least 3 Back Reference.\n" if (($br == 3) && ($fn3 eq ''));
+
+		die "Back Reference 1 must return a integer value.\n" if (($br == 1) && ($fn1 !~ /\d+/));
+		die "Back Reference 2 must return a integer value.\n" if (($br == 2) && ($fn2 !~ /\d+/));
+		die "Back Reference 3 must return a integer value.\n" if (($br == 3) && ($fn3 !~ /\d+/));
+
+		my $procFn = 0;
+		my $fVal;
+		if ($br == 1) {
+		    if ( ($fn1 >= $n1) && (($n2 eq '') || ($fn1 <= $n2)) ) {
+			$procFn = 1;
+			$fVal = $fn1;
+		    }
+		} elsif ($br == 2) {
+		    if ( ($fn2 >= $n1) && (($n2 eq '') || ($fn2 <= $n2)) ) {
+			$procFn = 1;
+			$fVal = $fn2;
+		    }
+		} elsif ($br == 3) {
+		    if ( ($fn3 >= $n1) && (($n2 eq '') || ($fn3 <= $n2)) ) {
+			$procFn = 1;
+			$fVal = $fn3;
+		    }
+		}
+
+		if ( $procFn ) {
+
+		    my $nVal = sprintf "\%012d", $fVal;
+
+		    $rsFn{$nVal} = $fVal;
+		}
+	    }    
+	}
+
+	my $seqNum = $nn;
+	foreach my $k (sort (keys %rsFn)) {
+	    $sqFn{$rsFn{$k}} = $seqNum;
+	    $seqNum++;
+	}
+
+    }
+
+    @procFiles = (sort (grep m/${fnPat}/, @allfiles));
+
+    foreach my $fn (@procFiles) {
 	my $ln = $fn;
 	# print "> $fn\n";
 	if ($ln =~ m/${fnPat}/) {
@@ -265,13 +315,13 @@ if ($testOpt || (!$roOpt)) {
 	    my $fn2 = $2;
 	    my $fn3 = $3;
 
-	    die "The Filename RegExp must return at least 1 Back Reference.\n" if (($br == 1) && ($fn1 eq ''));
-	    die "The Filename RegExp must return at least 2 Back Reference.\n" if (($br == 2) && ($fn2 eq ''));
-	    die "The Filename RegExp must return at least 3 Back Reference.\n" if (($br == 3) && ($fn3 eq ''));
+	    die "Test: The Filename RegExp must return at least 1 Back Reference.\n" if (($br == 1) && ($fn1 eq ''));
+	    die "Test: The Filename RegExp must return at least 2 Back Reference.\n" if (($br == 2) && ($fn2 eq ''));
+	    die "Test: The Filename RegExp must return at least 3 Back Reference.\n" if (($br == 3) && ($fn3 eq ''));
 
-	    die "Back Reference 1 must return a integer value.\n" if (($br == 1) && ($fn1 !~ /\d+/));
-	    die "Back Reference 2 must return a integer value.\n" if (($br == 2) && ($fn2 !~ /\d+/));
-	    die "Back Reference 3 must return a integer value.\n" if (($br == 3) && ($fn3 !~ /\d+/));
+	    die "Test: Back Reference 1 must return a integer value.\n" if (($br == 1) && ($fn1 !~ /\d+/));
+	    die "Test: Back Reference 2 must return a integer value.\n" if (($br == 2) && ($fn2 !~ /\d+/));
+	    die "Test: Back Reference 3 must return a integer value.\n" if (($br == 3) && ($fn3 !~ /\d+/));
 
 	    my $procFn = 0;
 	    my $fVal;
@@ -295,10 +345,11 @@ if ($testOpt || (!$roOpt)) {
 	    if ( $procFn ) {
 
 		my $xVal = $fVal + $nDiff;
-		if ($exclam) {
+		if ($seqOpt) {
+		    $xVal = $sqFn{$fVal};
+		} elsif ($exclam) {
 		    $xVal = $nn;
 		}
-
 		if ($fmtOpt) {
 		    $xVal = sprintf "\%0".$fmtOpt."\d", $xVal;
 		}
@@ -384,7 +435,7 @@ if ($testOpt || (!$roOpt)) {
 }
 
 # print "File...\n";
-foreach my $fn (sort (grep m/${fnPat}/, @allfiles)) {
+foreach my $fn (@procFiles) {
     my $ln = $fn;
     # print "> $fn\n";
     if ($ln =~ m/${fnPat}/) {
@@ -423,10 +474,11 @@ foreach my $fn (sort (grep m/${fnPat}/, @allfiles)) {
 	if ( $procFn ) {
 
 	    my $xVal = $fVal + $nDiff;
-	    if ($exclam) {
+	    if ($seqOpt) {
+		$xVal = $sqFn{$fVal};
+	    } elsif ($exclam) {
 		$xVal = $nn;
 	    }
-
 	    if ($fmtOpt) {
 		$xVal = sprintf "\%0".$fmtOpt."\d", $xVal;
 	    }
