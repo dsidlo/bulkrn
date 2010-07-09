@@ -30,8 +30,8 @@
   --verbose|-v
   Turn on verbose mode.
 
-  --reSeq|-s
-  Resequence the numbers (n1-n2) begining with nn such that the new values are contiguous.
+  --reSeq|-s [increment]
+  Resequence the numbers (n1-n2) begining with nn such that the new values are contiguous and optionaly incremented by [increment].
 
   --run-only|-x
   Run without first testing. But, if a file over-write is detected, rename operations are undone. Leaving the files and file names in thier original state.
@@ -59,18 +59,20 @@ use Getopt::Long;
 
 use strict;
 
-my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt, $roOpt, $seqopt);
+my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt, $roOpt);
 
-my $retGetOpts = GetOptions ( "filePat|f=s" => \$fnPat,   # The file name regexp.
+my $retGetOpts = GetOptions ( "filePat|f=s"    => \$fnPat,   # The file name regexp.
 			      "reNums|r=s"     => \$reNums,  # br:n1|n1-n2:nn
 			      "format|d=s"     => \$fmtOpt,  # Use a format string
-			      "reSeq|s"        => \$seqOpt,  # Force Sequence Option
+			      "reSeq|s:i"      => \$seqOpt,  # Force Sequence with Optional Increment
 			      "help|h"         => \$helpOpt, # Output help
 			      "test|t"         => \$testOpt, # Only do a test
-			      "verbose|v"      => \$verbOpt, # Verbose Output
+			      "verbose|v+"     => \$verbOpt, # Verbose Output
 			      "run-only|x"     => \$roOpt,   # Run Only. No test before running 
     );
 
+# print "=> (\$fnPat\:$fnPat, \$reNums\:$reNums, \$seqOpt\:$seqOpt, \$helpOpt\:$helpOpt,"
+#      ." \$testOpt\:$testOpt, \$verbOpt\:$verbOpt, \$fmtOpt\:$fmtOpt, \$roOpt\:$roOpt)\n";
 
 if ($helpOpt) {
     print << "_EOF_";
@@ -100,14 +102,16 @@ renumFiles.pl - ReNumber Files
   your file pattern is picking up the files that you expect to rename. And, you can the
   how the file name splits up into its back-references.
 
-$ ./renumFiles.pl -f '(mwlog\\.wfiejb\\d+)(\\.\\d\\d\\d\\d)(08\\d\\d)' 
+\$ \./renumFiles.pl -f '(mwlog\\.wfiejb\\d+)(\\.\\d\\d\\d\\d)(08\\d\\d)' 
 Testing the FilePattern...
 FilePattern Test: mwlog.wfiejb1.20100810 => $1(mwlog.wfiejb1) $2(.2010) $3(0810)
 FilePattern Test: mwlog.wfiejb1.20100811 => $1(mwlog.wfiejb1) $2(.2010) $3(0811)
 FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
 ...
 
-  The file name pattern...
+ The file name pattern...
+
+  -filePat|-f [filePattern RegExpp]
 
   '(mwlog\\.wfiejb)(\\d+)(\\..*)'
     ^------------  ^--- ^--- 
@@ -117,9 +121,10 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
     +-----------------------: BackRef \$1 -> \$fn3
 
   In the example above...
-  The 2nd back-reference value returned must be a numeric value.
+  For our example, we want to renumber the values of the 2nd back-reference, so the
+  2nd back-reference must allways return a numeric value.
   This numberic value is compared against n1. And, if there is a match, n1 is
-  substitued with the value of n2. And the new file name is built...
+  substitued with the value of nn. And the new file name is built...
 
   \$newFn = \$fn1.(\$fn+(n2-n1)).\$fn3;
 
@@ -135,15 +140,22 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
       single value. The "new number" value will not change relative to the 
       Back Reference value found in the file name.
 
-  ** If n1 is specified without n2, all values from n1 and greater are changed
-     to the new value. 
-     If n1 and n2 exist with a dash between them all values between and including
-     n1 and n2 are changed to a new value.
+  ** If n1 is specified without n2,only the files whos back-reference values match
+     n1 will be change to the new number.
+     If n1 is specified with a trailing dash "-" and n2 is not specified "10-",
+     all values from n1 and greater are changed to the new value. 
+     If n1 and n2 exist with a dash "-" between them "10-20" all values between
+     and including n1 and n2 are changed to a new value.
 
   example: renumFiles.pl -f '(mwlog\\.wfiejb)(\\d+)(\\..*)' -r 2:5:15 
 
   Above, only n1 and nn are specified as options, all \$2 back-reference values that
-  match 5 and above will be incrmented by 10. 
+  match 5 will be incrmented by 10 (nn-n1).
+
+  example: renumFiles.pl -f '(mwlog\\.wfiejb)(\\d+)(\\..*)' -r 2:5-:15 
+
+  Above, only n1 and nn are specified as options, all \$2 back-reference values that
+  match 5 and above will be incrmented by 10 (nn-n1).
 
   example: renumFiles.pl -f '(mwlog\\.wfiejb)(\\d+)(\\..*)' -r 2:5-7:15
 
@@ -156,17 +168,17 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
 
   Other options:
 
-  --format | -d <Leading Zeros Format Length>
+  --format|-d <Leading Zeros Format Length>
   Format the new numberic value with leading zeros to a length of n.
   example: -d 5
 
-  --help | -h
+  --help|-h
   Output this help text.
 
-  --reSeq|-s
-  Resequence the numbers (n1-n2) begining with nn such that the new values are contiguous.
+  --reSeq|-s [increment]
+  Resequence the numbers (n1-n2) begining with nn such that the new values are contiguous and optionaly incremented by [increment].
 
-  --test | -t
+  --test|-t
   Test the renumbering/renaming process against the filenames in the current directory.
 
   --verbose | -v
@@ -233,6 +245,8 @@ my $nDiff = $nn - $n1;
 opendir(my $DF, "./") || die "Could not opendir './'!\n";
 my @allfiles = readdir($DF);
 
+# Test the Renumber/Rename Process ===============================================================================
+
 my (%rn2, %rn3);
 my @rnDone;
 my %rsFn;
@@ -241,7 +255,7 @@ my @procFiles;
 
 
 if ($testOpt) {
-    $verbOpt = 1;
+    $verbOpt = 2;
 }
 
 if ($testOpt || (!$roOpt)) {
@@ -299,7 +313,7 @@ if ($testOpt || (!$roOpt)) {
 	my $seqNum = $nn;
 	foreach my $k (sort (keys %rsFn)) {
 	    $sqFn{$rsFn{$k}} = $seqNum;
-	    $seqNum++;
+	    $seqNum += $seqOpt;
 	}
 
     }
@@ -371,13 +385,13 @@ if ($testOpt || (!$roOpt)) {
 		if (! exists $testRns{$newFn}) {
 		    $testRns{$newFn} = $testRns{$fn};
 		    undef $testRns{$fn};
-		    &verbose("Test: Renamed $fn to $newFn\n");
+		    &verbose(2,"Test: Renamed $fn to $newFn\n");
 		} else {
 		    # Renaming this file requires 2 stages to eliminate file overwrites.
-		    &verbose("Test: Renaming $fn to $newFn requires a 2-Phase Rename.\n");
+		    &verbose(2,"Test: Renaming $fn to $newFn requires a 2-Phase Rename.\n");
 		    $rn2{$fn} = $newFn;
 		    if (($xVal < $n1) && ($xVal >$n2)) {
-			&verbose("\nTest: *** Rename would be aborted because files outside of the renamed range would be lost! ($newFn)\n");
+			&verbose(1,"\nTest: *** Rename would be aborted because files outside of the renamed range would be lost! ($newFn)\n");
 			die;
 		    }
 		}
@@ -393,7 +407,7 @@ if ($testOpt || (!$roOpt)) {
 	    if (! exists $testRns{$newFn2}) {
 		$testRns{$newFn2} = $testRns{$rnf};
 		delete $testRns{$rnf};
-		&verbose("Test: Renamed $rnf to $newFn2\n");
+		&verbose(2,"Test: Renamed $rnf to $newFn2\n");
 		$rn3{$newFn2} = $rn2{$rnf};
 	    } else {
 		print "\nTest: *** Phase1 Existing file would be over-written lost! ($newFn2)\n";
@@ -412,7 +426,7 @@ if ($testOpt || (!$roOpt)) {
 	    if (! exists $testRns{$newFn}) {
 		$testRns{$newFn} = $testRns{$rnf};
 		delete $testRns{$rnf};
-		&verbose("Test: Renamed $rnf to $newFn\n");
+		&verbose(2,"Test: Renamed $rnf to $newFn\n");
 	    } else {
 		print "\nTest: *** Phase2 Existing file would be over-written and lost! ($newFn)\n";
 		print "Test: ...\n";
@@ -428,11 +442,16 @@ if ($testOpt || (!$roOpt)) {
     }
 
     if ($testOpt) {
-	&verbose("*** Only Tested, no files have been renamed.\n");
+	&verbose(1,"*** Only Tested, no files have been renamed.\n");
 	exit;
     }
 
 }
+
+# Run the Renumber/Rename Process ===============================================================================
+
+my (%rn2, %rn3);
+my @rnDone;
 
 # print "File...\n";
 foreach my $fn (@procFiles) {
@@ -497,10 +516,10 @@ foreach my $fn (@procFiles) {
 	    if (! -f $newFn) {
 		rename ($fn, $newFn) || print "Failed to rename file ($fn -> $newFn)\n";
 		push (@rnDone, "$fn:$newFn");
-		&verbose("Renamed $fn to $newFn\n");
+		&verbose(2,"Renamed $fn to $newFn\n");
 	    } else {
 		# Renaming this file requires 2 stages to eliminate file overwrites.
-		&verbose("Renaming $fn to $newFn requires a 2-Phase Rename.\n");
+		&verbose(2,"Renaming $fn to $newFn requires a 2-Phase Rename.\n");
 		$rn2{$fn} = $newFn;
 		if (($xVal < $n1) && ($xVal >$n2)) {
 		    print "\n*** Rename aborted because files outside of the renamed range would be lost! ($newFn)\n";
@@ -518,27 +537,33 @@ if (keys %rn2) {
     foreach my $rnf (keys %rn2) {
 	my $newFn2 = $rnf."_".time()."_".rand(time());
 	if (! -f $newFn2) {
-	    rename ($rnf, $newFn2) || die "File Stage1 Rename failed! ($rnf -> $newFn2)\n";
+	    if (!rename ($rnf, $newFn2)) {
+		print "*** Phase 1 Rename failed! ($rnf -> $newFn2)\n";
+		&undoRenames();
+		exit;
+	    }
 	    push (@rnDone, "$rnf:$newFn2");
-	    &verbose("Renamed $rnf to $newFn2\n");
+	    &verbose(2,"Renamed $rnf to $newFn2\n");
 	    $rn3{$newFn2} = $rn2{$rnf};
 	} else {
 	    print "\n*** Phase1 Existing file would be over-written lost! ($newFn2)\n";
 	    &undoRenames();
-	    print "Rename Actions have been undone.\n";
 	    exit;
 	}
     }
     foreach my $rnf (keys %rn3) {
 	my $newFn = $rn3{$rnf};
 	if (! -f $newFn) {
-	    rename ($rnf, $newFn) || die "File Stage2 Rename failed! ($rnf -> $newFn)\n";
+	    if (!rename ($rnf, $newFn)) {
+		print "*** Phase 2 Rename failed! ($rnf -> $newFn)\n";
+		&undoRenames();
+		exit;
+	    }
 	    push (@rnDone, "$rnf:$newFn");
-	    &verbose("Renamed $rnf to $newFn\n");
+	    &verbose(2,"Renamed $rnf to $newFn\n");
 	} else {
 	    print "\n*** Phase2 Existing file would be over-written and lost! ($newFn)\n";
 	    &undoRenames();
-	    print "Rename Actions have been undone.\n";
 	    exit;
 	}
     }
@@ -550,19 +575,19 @@ sub undoRenames {
 	my ($on, $nn) = split(':', $rnDone[$i]);
 	if (! -f $on) {
 	    rename ($nn, $on) || die "Undo Rename failed! ($nn -> $on)\n";
-	    &verbose("Rename was undone [$nn back-to $on].\n");
+	    &verbose(1,"Rename was undone [$nn back-to $on].\n");
 	} else {
 	    # This should not occur.
 	    die "Undo Rename Failed, Existing file would be over-written and lost! ($on)";
 	}
     }
-
+    print "Rename Actions have been undone.\n";
 }
 
 sub verbose {
-    my $msg = shift;
+    my ($lvl, $msg) = @_;
 
-    if ($verbOpt) {
+    if ($verbOpt >= $lvl) {
 	print $msg;
     }
 }
