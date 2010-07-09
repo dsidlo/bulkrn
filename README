@@ -1,28 +1,35 @@
 
-renumFiles.pl - ReNumber Files
+renumFiles.pl - ReNumber Files  Version (0.0.2)
 
-  Safely renumbers and renames numeric portions of file(s) name in the current directory.
-  Watches for filename overlap/overwrite conditions what would result in a loss of a file
-  and undoes any changes if there is a chance that data-loss might occur.
+  Safely renumbers and/or renames numeric portions of file(s) name in the
+  current directory. Watches for filename overlap/overwrite conditions what
+  would result in a loss of a file and undoes any changes if there is a chance
+  that data-loss might occur.
 
-  By default, a simulated test is run to ensure that no data-loss occurs before the actual
-  file renames are performed. This default pre-test can be disabled by the [--run-only | -x]
-  option.
+  By default, a simulated test is run to ensure that no data-loss occurs before
+  the actual file renames are performed. This default pre-test can be disabled
+  by the [--run-only | -x] option.
 
-  You may test/simulate the rename process without actually performing the file renames by
-  using the -t switch. By default, the [--test | -t] option performs verbose output about
-  what file rename operations would be performed.
+  You may test/simulate the rename process without actually performing the file
+  renames by using the -t switch. By default, the [--test | -t] option performs
+  verbose output about what file rename operations would be performed.
 
-  usage: renumFiles.pl [-h|-t|-v-|-x] -f [regexpWith2BackRefs] -r [br:n1|n1-n2:nn[!]] [-d [ZeroPaddedLen]]
+  The -r and -c options may be used alone or in tandem to either rename or
+  renumber some portion of the file name, for the set of files that match the -f
+  file pattern.
+
+  usage: renumFiles.pl [-h|-t|-v-|-x] -f [regexpWith2BackRefs] [-r [br:n1|n1-n2:nn[!]]]
+                       [-s [SequentialIncrement]] [-d [ZeroPaddedLength]]
+                       [-c [SubstitutionPattern]]
 
   Requires that the first argument, be defined as a pattern that matches to
-  a set of file-names of interest, where the pattern returns upto 3 back-reference
-  values. The parameter br is the Back Reference value which will be changed
-  into a new number.
+  a set of file-names of interest, where the pattern returns upto
+  3 back-reference values. The parameter br is the Back Reference value which
+  will be changed into a new number.
 
-  By only supplying the [--filePat | -f] option and a file pattern, you can test that
-  your file pattern is picking up the files that you expect to rename. And, you can the
-  how the file name splits up into its back-references.
+  By only supplying the [--filePat | -f] option and a file pattern, you can test
+  that your file pattern is picking up the files that you expect to rename. And,
+  you can the how the file name splits up into its back-references.
 
 $ ./renumFiles.pl -f '(mwlog\.wfiejb\d+)(\.\d\d\d\d)(08\d\d)' 
 Testing the FilePattern...
@@ -43,8 +50,8 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
     +-----------------------: BackRef $1 -> $fn3
 
   In the example above...
-  For our example, we want to renumber the values of the 2nd back-reference, so the
-  2nd back-reference must allways return a numeric value.
+  For our example, we want to renumber the values of the 2nd back-reference, so
+  the 2nd back-reference must allways return a numeric value.
   This numberic value is compared against n1. And, if there is a match, n1 is
   substitued with the value of nn. And the new file name is built...
 
@@ -62,8 +69,8 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
       single value. The "new number" value will not change relative to the 
       Back Reference value found in the file name.
 
-  ** If n1 is specified without n2,only the files whos back-reference values match
-     n1 will be change to the new number.
+  ** If n1 is specified without n2,only the files whos back-reference values
+     match n1 will be change to the new number.
      If n1 is specified with a trailing dash "-" and n2 is not specified "10-",
      all values from n1 and greater are changed to the new value. 
      If n1 and n2 exist with a dash "-" between them "10-20" all values between
@@ -71,41 +78,45 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
 
   example: renumFiles.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5:15 
 
-  Above, only n1 and nn are specified as options, all $2 back-reference values that
-  match 5 will be incrmented by 10 (nn-n1).
+  Above, only n1 and nn are specified as options, all $2 back-reference values
+  that match 5 will be incrmented by 10 (nn-n1).
 
   example: renumFiles.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5-:15 
 
-  Above, only n1 and nn are specified as options, all $2 back-reference values that
-  match 5 and above will be incrmented by 10 (nn-n1).
+  Above, only n1 and nn are specified as options, all $2 back-reference values
+  that match 5 and above will be incrmented by 10 (nn-n1).
 
   example: renumFiles.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5-7:15
 
-  Above, n1-n2 and nn are specified as options, only $2 back-reference values that
-  match 5 thru 7 are incrmented by 10. 
+  Above, n1-n2 and nn are specified as options, only $2 back-reference values
+  that match 5 thru 7 are incrmented by 10. 
 
   The rename process watches for file name overlap conditions what would cause
-  a file to be overwritten and lost. If such conditions are found, the process aborts
-  after undoing all file renames that had been done thus far.
+  a file to be overwritten and lost. If such conditions are found, the process
+  aborts after undoing all file renames that had been done thus far.
 
   Other options:
 
-  --format|-d <Leading Zeros Format Length>
+  --format|-d [LeadingZerosFormatLength]
   Format the new numberic value with leading zeros to a length of n.
   example: -d 5
+
+  --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
+  A substitution pattern that changes some portion of the filename if found.
 
   --help|-h
   Output this help text.
 
-  --reSeq|-s [increment]
-  Resequence the numbers (n1-n2) begining with nn such that the new values are contiguous
-  and optionaly incremented by [increment].
+  --reSeq|-s [SequentialIncrement] (-s 1)
+  Resequence the numbers (n1-n2) begining with nn such that the new values are
+  contiguous and optionaly incremented by [increment].
 
   --test|-t
-  Test the renumbering/renaming process against the filenames in the current directory.
+  Test the renumbering/renaming process against the filenames in the current
+  directory.
 
   --verbose | -v
   Print details of the renaming process.
   There are 2 levels of verbosity "-v" and "-v -v"
 
-
+  (See: "perldoc renumFiles.pl" for more details and examples of use.)
