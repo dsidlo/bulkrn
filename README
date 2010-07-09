@@ -98,12 +98,14 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
   Output this help text.
 
   --reSeq|-s [increment]
-  Resequence the numbers (n1-n2) begining with nn such that the new values are contiguous and optionaly incremented by [increment].
+  Resequence the numbers (n1-n2) begining with nn such that the new values are contiguous
+  and optionaly incremented by [increment].
 
   --test|-t
   Test the renumbering/renaming process against the filenames in the current directory.
 
   --verbose | -v
   Print details of the renaming process.
+  There are 2 levels of verbosity "-v" and "-v -v"
 
 

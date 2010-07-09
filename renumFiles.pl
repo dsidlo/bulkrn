@@ -176,13 +176,15 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
   Output this help text.
 
   --reSeq|-s [increment]
-  Resequence the numbers (n1-n2) begining with nn such that the new values are contiguous and optionaly incremented by [increment].
+  Resequence the numbers (n1-n2) begining with nn such that the new values are contiguous
+  and optionaly incremented by [increment].
 
   --test|-t
   Test the renumbering/renaming process against the filenames in the current directory.
 
   --verbose | -v
   Print details of the renaming process.
+  There are 2 levels of verbosity "-v" and "-v -v"
 
 
 _EOF_
@@ -260,6 +262,8 @@ if ($testOpt) {
 
 if ($testOpt || (!$roOpt)) {
     
+    &verbose(1,"--- Testing Rename Operations...\n");
+
     my %testRns;
 
     foreach my $fn (@allfiles) {
@@ -444,6 +448,8 @@ if ($testOpt || (!$roOpt)) {
     if ($testOpt) {
 	&verbose(1,"*** Only Tested, no files have been renamed.\n");
 	exit;
+    } else {
+	&verbose(1,"*** Rename Operation Test Done.\n");
     }
 
 }
@@ -453,7 +459,8 @@ if ($testOpt || (!$roOpt)) {
 my (%rn2, %rn3);
 my @rnDone;
 
-# print "File...\n";
+&verbose(1,"--- Performing Rename Operations...\n");
+
 foreach my $fn (@procFiles) {
     my $ln = $fn;
     # print "> $fn\n";
@@ -569,6 +576,7 @@ if (keys %rn2) {
     }
 }
 
+&verbose(1,"*** Rename Operations Completed.\n");
 
 sub undoRenames {
     for (my $i=$#rnDone; $i>=0; $i--) {
