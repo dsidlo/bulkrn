@@ -1,26 +1,33 @@
 
-renumFiles.pl - ReNumber Files  Version (0.0.2)
+bulkrn.pl - ReNumber Files  Version (0.0.2)
 
   Safely renumbers and/or renames numeric portions of file(s) name in the
   current directory. Watches for filename overlap/overwrite conditions what
   would result in a loss of a file and undoes any changes if there is a chance
   that data-loss might occur.
 
-  By default, a simulated test is run to ensure that no data-loss occurs before
-  the actual file renames are performed. This default pre-test can be disabled
-  by the [--run-only | -x] option.
+  By default, the rename process only runs in "test" mode, and you must add the
+  -go option to perform the actual rename commands against the file system.
+  This guards against the possibility of loosing "file name" information in the
+  case where the rename parameters are incorrect, and the renames are performed
+  (with no overwrite conditions, and are not undone), and as a result, all
+  files have been renamed as simple number strings.
+  So, Always check your final results first before committing with the -go
+  option.
 
-  You may test/simulate the rename process without actually performing the file
-  renames by using the -t switch. By default, the [--test | -t] option performs
-  verbose output about what file rename operations would be performed.
+  Again, by default (even with the -go option), a simulated test is always
+  run to ensure that no data-loss occurs before the actual file renames are
+  performed. This default pre-test can be disabled by the [--run-only | -x]
+  option. This is especially useful when using this program within a script.
 
   The -r and -c options may be used alone or in tandem to either rename or
   renumber some portion of the file name, for the set of files that match the -f
   file pattern.
 
-  usage: renumFiles.pl [-h|-t|-v-|-x] -f [regexpWith2BackRefs] [-r [br:n1|n1-n2:nn[!]]]
-                       [-s [SequentialIncrement]] [-d [ZeroPaddedLength]]
-                       [-c [SubstitutionPattern]]
+  usage: bulkrn.pl [-h|-t|-v-|-x] -f [regexpWith2BackRefs] [-r [br:n1|n1-n2:nn[!]]]
+                   [-s [SequentialIncrement]] [-d [ZeroPaddedLength]]
+                   [-c [SubstitutionPattern]]
+                   [-go]
 
   Requires that the first argument, be defined as a pattern that matches to
   a set of file-names of interest, where the pattern returns upto
@@ -31,7 +38,7 @@ renumFiles.pl - ReNumber Files  Version (0.0.2)
   that your file pattern is picking up the files that you expect to rename. And,
   you can the how the file name splits up into its back-references.
 
-$ ./renumFiles.pl -f '(mwlog\.wfiejb\d+)(\.\d\d\d\d)(08\d\d)' 
+$ ./bulkrn.pl -f '(mwlog\.wfiejb\d+)(\.\d\d\d\d)(08\d\d)' 
 Testing the FilePattern...
 FilePattern Test: mwlog.wfiejb1.20100810 => (mwlog.wfiejb1) (.2010) (0810)
 FilePattern Test: mwlog.wfiejb1.20100811 => (mwlog.wfiejb1) (.2010) (0811)
@@ -76,17 +83,17 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
      If n1 and n2 exist with a dash "-" between them "10-20" all values between
      and including n1 and n2 are changed to a new value.
 
-  example: renumFiles.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5:15 
+  example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5:15 
 
   Above, only n1 and nn are specified as options, all $2 back-reference values
   that match 5 will be incrmented by 10 (nn-n1).
 
-  example: renumFiles.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5-:15 
+  example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5-:15 
 
   Above, only n1 and nn are specified as options, all $2 back-reference values
   that match 5 and above will be incrmented by 10 (nn-n1).
 
-  example: renumFiles.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5-7:15
+  example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5-7:15
 
   Above, n1-n2 and nn are specified as options, only $2 back-reference values
   that match 5 thru 7 are incrmented by 10. 
@@ -103,6 +110,10 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
 
   --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
   A substitution pattern that changes some portion of the filename if found.
+  The back-references ,, may be used in the "matching" portion of the
+  string substitution equation to refer to the back-refs in the original
+  --filePat parameter. This is useful for upper and lowercasing portions of
+  a filename.
 
   --help|-h
   Output this help text.
@@ -119,4 +130,4 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
   Print details of the renaming process.
   There are 2 levels of verbosity "-v" and "-v -v"
 
-  (See: "perldoc renumFiles.pl" for more details and examples of use.)
+  (See: "perldoc bulkrn.pl" for more details and examples of use.)
