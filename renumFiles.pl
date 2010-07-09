@@ -10,7 +10,10 @@ use strict;
 
 my $VERSION = "0.0.2";
 
-my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt, $roOpt, $substOpt);
+my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt, $roOpt, $substOpt, $runOpt);
+
+# By Default we always only test.
+$testOpt = 1;
 
 my $retGetOpts = GetOptions ( "filePat|f=s"    => \$fnPat,    # The file name regexp.
 			      "reNums|r=s"     => \$reNums,   # br:n1|n1-n2:nn
@@ -18,7 +21,7 @@ my $retGetOpts = GetOptions ( "filePat|f=s"    => \$fnPat,    # The file name re
 			      "reSeq|s:i"      => \$seqOpt,   # Force Sequence with Optional Increment
 			      "change|c=s"     => \$substOpt, # Substitution String
 			      "help|h"         => \$helpOpt,  # Output help
-			      "test|t"         => \$testOpt,  # Only do a test
+			      "go"             => \$runOpt,   # Run this baby!
 			      "verbose|v+"     => \$verbOpt,  # Verbose Output
 			      "run-only|x"     => \$roOpt,    # Run Only. No test before running 
     );
@@ -28,6 +31,11 @@ my $retGetOpts = GetOptions ( "filePat|f=s"    => \$fnPat,    # The file name re
 
 if ($helpOpt) {
     &helpMe();
+}
+
+# We must add the -go options to run for real.
+if ($runOpt) {
+    $testOpt = 0;
 }
 
 # Just run a File Pattern Test...
@@ -515,13 +523,19 @@ renumFiles.pl - ReNumber Files  Version ($VERSION)
   would result in a loss of a file and undoes any changes if there is a chance
   that data-loss might occur.
 
-  By default, a simulated test is run to ensure that no data-loss occurs before
-  the actual file renames are performed. This default pre-test can be disabled
-  by the [--run-only | -x] option.
+  By default, the rename process only runs in "test" mode, and you must add the
+  -go option to perform the actual rename commands against the file system.
+  This guards against the possibility of loosing "file name" information in the
+  case where the rename parameters are incorrect, and the renames are performed
+  (with no overwrite conditions, and are not undone), and as a result, all
+  files have been renamed as simple number strings.
+  So, Always check your final results first before committing with the -go
+  option.
 
-  You may test/simulate the rename process without actually performing the file
-  renames by using the -t switch. By default, the [--test | -t] option performs
-  verbose output about what file rename operations would be performed.
+  Again, by default (even with the -go option), a simulated test is always
+  run to ensure that no data-loss occurs before the actual file renames are
+  performed. This default pre-test can be disabled by the [--run-only | -x]
+  option. This is especially useful when using this program within a script.
 
   The -r and -c options may be used alone or in tandem to either rename or
   renumber some portion of the file name, for the set of files that match the -f
@@ -530,6 +544,7 @@ renumFiles.pl - ReNumber Files  Version ($VERSION)
   usage: renumFiles.pl [-h|-t|-v-|-x] -f [regexpWith2BackRefs] [-r [br:n1|n1-n2:nn[!]]]
                        [-s [SequentialIncrement]] [-d [ZeroPaddedLength]]
                        [-c [SubstitutionPattern]]
+                       [-go]
 
   Requires that the first argument, be defined as a pattern that matches to
   a set of file-names of interest, where the pattern returns upto
@@ -699,6 +714,20 @@ _EOF_
   process, the process is aborted at that point, and all file renames done to
   that point are un-done.
 
+  By default, the rename process only runs in "test" mode, and you must add the
+  -go option to perform the actual rename commands against the file system.
+  This guards against the possibility of loosing "file name" information in the
+  case where the rename parameters are incorrect, and the renames are performed
+  (with no overwrite conditions, and are not undone), and as a result, all
+  files have been renamed as simple number strings.
+  So, Always check your final results first before committing with the -go
+  option.
+
+  Again, by default (even with the -go option), a simulated test is always
+  run to ensure that no data-loss occurs before the actual file renames are
+  performed. This default pre-test can be disabled by the [--run-only | -x]
+  option. This is especially useful when using this program within a script.
+
 =head1 AUTHOR - David Sidlo
 
     dsidlo@gmail.com
@@ -710,7 +739,7 @@ _EOF_
   ./renumFiles.pl -f 'mwlog'
   List the files that match to mwlog in the current directory.
 
-  ./renumFiles.pl -f 'mwlog' -c 's/mwlog/mxlog/'
+  ./renumFiles.pl -f 'mwlog' -c 's/mwlog/mxlog/' -go
   Changes the file names that match mwlog in the current directory to mxlog.
 
   ./renumFiles.pl -f 'mxlog\.wfiejb(\d+)(\.\d+)'
@@ -718,11 +747,11 @@ _EOF_
   See what portions of the file name are captured in upto 3 back reference
   values.
 
-  ./renumFiles.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:300 -s 1
+  ./renumFiles.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:300 -s 1 -go
   Renumber the value after wfiejb from 1-n to 300-n resequencing the value with
   an increment of 1.
 
-  ./renumFiles.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:2 -s 2 -d 3 -c 's/mxlog/mwlog/'
+  ./renumFiles.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:2 -s 2 -d 3 -c 's/mxlog/mwlog/' -go
   Renumber the value after wfiejb from 1-n to 2-n resequencing the value with an
   increment of 2, formatting the number with 3 digits and leading zeros, and
   changing "mxlog" to "mwlog".
