@@ -4,13 +4,26 @@
 # Renumber files.
 #
 
+#
+# Todo:
+# - Faster Test Failure...
+#   If existing file is not in the set of files that will be renamed,
+#   and overwrite will occur.
+#   Hash-Check to see if file that is in the way is part of the input set.
+# - Test results should output as original file and final file.
+# - Support n back-references.
+#
+
 use Getopt::Long;
 
 use strict;
 
 my $VERSION = "0.0.2";
 
-my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt, $roOpt, $substOpt);
+my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt, $roOpt, $substOpt, $runOpt);
+
+# By Default we always only test.
+$testOpt = 1;
 
 my $retGetOpts = GetOptions ( "filePat|f=s"    => \$fnPat,    # The file name regexp.
 			      "reNums|r=s"     => \$reNums,   # br:n1|n1-n2:nn
@@ -18,7 +31,7 @@ my $retGetOpts = GetOptions ( "filePat|f=s"    => \$fnPat,    # The file name re
 			      "reSeq|s:i"      => \$seqOpt,   # Force Sequence with Optional Increment
 			      "change|c=s"     => \$substOpt, # Substitution String
 			      "help|h"         => \$helpOpt,  # Output help
-			      "test|t"         => \$testOpt,  # Only do a test
+			      "go"             => \$runOpt,   # Run this baby!
 			      "verbose|v+"     => \$verbOpt,  # Verbose Output
 			      "run-only|x"     => \$roOpt,    # Run Only. No test before running 
     );
@@ -28,6 +41,11 @@ my $retGetOpts = GetOptions ( "filePat|f=s"    => \$fnPat,    # The file name re
 
 if ($helpOpt) {
     &helpMe();
+}
+
+# We must add the -go options to run for real.
+if ($runOpt) {
+    $testOpt = 0;
 }
 
 # Just run a File Pattern Test...
@@ -112,8 +130,67 @@ my @procFiles;
 my @finRn;
 
 if ($testOpt) {
-    $verbOpt = 2;
+    $verbOpt = 2 if ($verbOpt < 2);
 }
+
+@procFiles = (sort (grep m/${fnPat}/, @allfiles));
+
+if ($#procFiles < 0) {
+    die "Your regexp --filePat \'$fnPat\' parameter does not match any files in the current directory!\n";
+}
+
+if ($seqOpt) {
+    foreach my $fn (@procFiles) {
+	my $ln = $fn;
+	# print "> $fn\n";
+	if ($ln =~ m/${fnPat}/) {
+	    my $fn1 = $1;
+	    my $fn2 = $2;
+	    my $fn3 = $3;
+	    die "The Filename RegExp must return at least 1 Back Reference.\n" if (($br == 1) && ($fn1 eq ''));
+	    die "The Filename RegExp must return at least 2 Back Reference.\n" if (($br == 2) && ($fn2 eq ''));
+	    die "The Filename RegExp must return at least 3 Back Reference.\n" if (($br == 3) && ($fn3 eq ''));
+
+	    die "Back Reference 1 must return a integer value.\n" if (($br == 1) && ($fn1 !~ /\d+/));
+	    die "Back Reference 2 must return a integer value.\n" if (($br == 2) && ($fn2 !~ /\d+/));
+	    die "Back Reference 3 must return a integer value.\n" if (($br == 3) && ($fn3 !~ /\d+/));
+
+	    my $procFn = 0;
+	    my $fVal;
+	    if ($br == 1) {
+		if ( ($fn1 >= $n1) && (($n2 eq '') || ($fn1 <= $n2)) ) {
+		    $procFn = 1;
+		    $fVal = $fn1;
+		}
+	    } elsif ($br == 2) {
+		if ( ($fn2 >= $n1) && (($n2 eq '') || ($fn2 <= $n2)) ) {
+		    $procFn = 1;
+		    $fVal = $fn2;
+		}
+	    } elsif ($br == 3) {
+		if ( ($fn3 >= $n1) && (($n2 eq '') || ($fn3 <= $n2)) ) {
+		    $procFn = 1;
+		    $fVal = $fn3;
+		}
+	    }
+
+	    if ( $procFn ) {
+
+		my $nVal = sprintf "\%012d", $fVal;
+
+		$rsFn{$nVal} = $fVal;
+	    }
+	}    
+    }
+
+    my $seqNum = $nn;
+    foreach my $k (sort (keys %rsFn)) {
+	$sqFn{$rsFn{$k}} = $seqNum;
+	$seqNum += $seqOpt;
+    }
+
+}
+
 
 if ($testOpt || (!$roOpt)) {
     
@@ -125,65 +202,6 @@ if ($testOpt || (!$roOpt)) {
     foreach my $fn (@allfiles) {
 	$testRns{$fn} = $fn;
     }
-
-    @procFiles = (sort (grep m/${fnPat}/, @allfiles));
-    if ($#procFiles < 0) {
-        die "Your regexp --filePat \'$fnPat\' parameter does not match any files in the current directory!\n";
-    }
-
-    if ($seqOpt) {
-	foreach my $fn (@procFiles) {
-	    my $ln = $fn;
-	    # print "> $fn\n";
-	    if ($ln =~ m/${fnPat}/) {
-		my $fn1 = $1;
-		my $fn2 = $2;
-		my $fn3 = $3;
-		die "The Filename RegExp must return at least 1 Back Reference.\n" if (($br == 1) && ($fn1 eq ''));
-		die "The Filename RegExp must return at least 2 Back Reference.\n" if (($br == 2) && ($fn2 eq ''));
-		die "The Filename RegExp must return at least 3 Back Reference.\n" if (($br == 3) && ($fn3 eq ''));
-
-		die "Back Reference 1 must return a integer value.\n" if (($br == 1) && ($fn1 !~ /\d+/));
-		die "Back Reference 2 must return a integer value.\n" if (($br == 2) && ($fn2 !~ /\d+/));
-		die "Back Reference 3 must return a integer value.\n" if (($br == 3) && ($fn3 !~ /\d+/));
-
-		my $procFn = 0;
-		my $fVal;
-		if ($br == 1) {
-		    if ( ($fn1 >= $n1) && (($n2 eq '') || ($fn1 <= $n2)) ) {
-			$procFn = 1;
-			$fVal = $fn1;
-		    }
-		} elsif ($br == 2) {
-		    if ( ($fn2 >= $n1) && (($n2 eq '') || ($fn2 <= $n2)) ) {
-			$procFn = 1;
-			$fVal = $fn2;
-		    }
-		} elsif ($br == 3) {
-		    if ( ($fn3 >= $n1) && (($n2 eq '') || ($fn3 <= $n2)) ) {
-			$procFn = 1;
-			$fVal = $fn3;
-		    }
-		}
-
-		if ( $procFn ) {
-
-		    my $nVal = sprintf "\%012d", $fVal;
-
-		    $rsFn{$nVal} = $fVal;
-		}
-	    }    
-	}
-
-	my $seqNum = $nn;
-	foreach my $k (sort (keys %rsFn)) {
-	    $sqFn{$rsFn{$k}} = $seqNum;
-	    $seqNum += $seqOpt;
-	}
-
-    }
-
-    @procFiles = (sort (grep m/${fnPat}/, @allfiles));
 
     foreach my $fn (@procFiles) {
 	my $ln = $fn;
@@ -255,12 +273,18 @@ if ($testOpt || (!$roOpt)) {
 		# --change
 		if ($substOpt) {
 		    my $xFn;
-		    my $r = eval  "\$xFn = \"$newFn\"; \$xFn =~ s$ss${s1}$ss${s2}$ss${s3};";
-		    # print "==> xFn[$xFn] r[$r]\n";
-		    if ($r) {
+		    
+		    my $s1a = $s1;
+		    $s1a =~ s/[\$\\]1/($fn1)/g;
+		    $s1a =~ s/[\$\\]2/($fn2)/g;
+		    $s1a =~ s/[\$\\]3/($fn3)/g;
+
+		    eval  "\$xFn = \"$newFn\"; \$xFn =~ s$ss${s1a}$ss${s2}$ss${s3};";
+		    # print "==> [\$xFn = \"$newFn\"; \$xFn =~ s$ss$s1a$ss$s2$ss$s3;] xFn[$xFn] \$\@[$@]\n";
+		    if (!$@) {
 			$newFn = $xFn;
 		    } else {
-			die "Test: Name --change failed! [\$xFn = \"$newFn\"; \$xFn =~ s$ss$s1$ss$s2$ss$s3;] ";
+			die "Test: Name --change failed! [\$xFn = \"$newFn\"; \$xFn =~ s$ss$s1$ss$s2$ss$s3;] ($@)\n";
 		    }
 		}
 
@@ -269,10 +293,10 @@ if ($testOpt || (!$roOpt)) {
 		    $testRns{$newFn} = $testRns{$fn};
 		    undef $testRns{$fn};
 		    push (@finRn, $newFn);
-		    &verbose(2,"Test: Renamed $fn to $newFn\n");
+		    &verbose(3,"Test: Renamed $fn to $newFn\n");
 		} else {
 		    # Renaming this file requires 2 stages to eliminate file overwrites.
-		    &verbose(2,"Test: Renaming $fn to $newFn requires a 2-Phase Rename.\n");
+		    &verbose(3,"Test: Renaming $fn to $newFn requires a 2-Phase Rename.\n");
 		    $rn2{$fn} = $newFn;
 		    if (($xVal < $n1) && ($xVal >$n2)) {
 			&verbose(1,"\nTest: *** Rename would be aborted because files outside of the renamed range would be lost! ($newFn)\n");
@@ -291,7 +315,7 @@ if ($testOpt || (!$roOpt)) {
 	    if (! exists $testRns{$newFn2}) {
 		$testRns{$newFn2} = $testRns{$rnf};
 		delete $testRns{$rnf};
-		&verbose(2,"Test: Renamed $rnf to $newFn2\n");
+		&verbose(3,"Test: Renamed $rnf to $newFn2\n");
 		$rn3{$newFn2} = $rn2{$rnf};
 	    } else {
 		print "\nTest: *** Phase1 Existing file would be over-written lost! ($newFn2)\n";
@@ -311,7 +335,7 @@ if ($testOpt || (!$roOpt)) {
 		$testRns{$newFn} = $testRns{$rnf};
 		delete $testRns{$rnf};
 		push (@finRn, $newFn);
-		&verbose(2,"Test: Renamed $rnf to $newFn\n");
+		&verbose(3,"Test: Renamed $rnf to $newFn\n");
 	    } else {
 		print "\nTest: *** Phase2 Existing file would be over-written and lost! ($newFn)\n";
 		print "Test: ...\n";
@@ -416,12 +440,18 @@ foreach my $fn (@procFiles) {
 	    # --change
 	    if ($substOpt) {
 		my $xFn;
-		my $r = eval  "\$xFn = \"$newFn\"; \$xFn =~ s$ss${s1}$ss${s2}$ss${s3};";
-		# print "==> xFn[$xFn] r[$r]\n";
-		if ($r) {
+
+		my $s1a = $s1;
+		$s1a =~ s/[\$\\]1/($fn1)/g;
+		$s1a =~ s/[\$\\]2/($fn2)/g;
+		$s1a =~ s/[\$\\]3/($fn3)/g;
+
+		eval  "\$xFn = \"$newFn\"; \$xFn =~ s$ss${s1a}$ss${s2}$ss${s3};";
+		# print "==> [\$xFn = \"$newFn\"; \$xFn =~ s$ss$s1a$ss$s2$ss$s3;] xFn[$xFn] \$\@[$@]\n";
+		if (!$@) {
 		    $newFn = $xFn;
 		} else {
-		    die "Test: Name --change failed! [\$xFn = \"$newFn\"; \$xFn =~ s$ss$s1$ss$s2$ss$s3;] ";
+		    die "Test: Name --change failed! [\$xFn = \"$newFn\"; \$xFn =~ s$ss$s1$ss$s2$ss$s3;] ($@)\n";
 		}
 	    }
 
@@ -508,28 +538,35 @@ sub verbose {
 sub helpMe {
     print << "_EOF_";
 
-renumFiles.pl - ReNumber Files  Version ($VERSION)
+bulkrn.pl - ReNumber Files  Version ($VERSION)
 
   Safely renumbers and/or renames numeric portions of file(s) name in the
   current directory. Watches for filename overlap/overwrite conditions what
   would result in a loss of a file and undoes any changes if there is a chance
   that data-loss might occur.
 
-  By default, a simulated test is run to ensure that no data-loss occurs before
-  the actual file renames are performed. This default pre-test can be disabled
-  by the [--run-only | -x] option.
+  By default, the rename process only runs in "test" mode, and you must add the
+  -go option to perform the actual rename commands against the file system.
+  This guards against the possibility of loosing "file name" information in the
+  case where the rename parameters are incorrect, and the renames are performed
+  (with no overwrite conditions, and are not undone), and as a result, all
+  files have been renamed as simple number strings.
+  So, Always check your final results first before committing with the -go
+  option.
 
-  You may test/simulate the rename process without actually performing the file
-  renames by using the -t switch. By default, the [--test | -t] option performs
-  verbose output about what file rename operations would be performed.
+  Again, by default (even with the -go option), a simulated test is always
+  run to ensure that no data-loss occurs before the actual file renames are
+  performed. This default pre-test can be disabled by the [--run-only | -x]
+  option. This is especially useful when using this program within a script.
 
   The -r and -c options may be used alone or in tandem to either rename or
   renumber some portion of the file name, for the set of files that match the -f
   file pattern.
 
-  usage: renumFiles.pl [-h|-t|-v-|-x] -f [regexpWith2BackRefs] [-r [br:n1|n1-n2:nn[!]]]
-                       [-s [SequentialIncrement]] [-d [ZeroPaddedLength]]
-                       [-c [SubstitutionPattern]]
+  usage: bulkrn.pl [-h|-t|-v-|-x] -f [regexpWith2BackRefs] [-r [br:n1|n1-n2:nn[!]]]
+                   [-s [SequentialIncrement]] [-d [ZeroPaddedLength]]
+                   [-c [SubstitutionPattern]]
+                   [-go]
 
   Requires that the first argument, be defined as a pattern that matches to
   a set of file-names of interest, where the pattern returns upto
@@ -540,7 +577,7 @@ renumFiles.pl - ReNumber Files  Version ($VERSION)
   that your file pattern is picking up the files that you expect to rename. And,
   you can the how the file name splits up into its back-references.
 
-\$ \./renumFiles.pl -f '(mwlog\\.wfiejb\\d+)(\\.\\d\\d\\d\\d)(08\\d\\d)' 
+\$ \./bulkrn.pl -f '(mwlog\\.wfiejb\\d+)(\\.\\d\\d\\d\\d)(08\\d\\d)' 
 Testing the FilePattern...
 FilePattern Test: mwlog.wfiejb1.20100810 => $1(mwlog.wfiejb1) $2(.2010) $3(0810)
 FilePattern Test: mwlog.wfiejb1.20100811 => $1(mwlog.wfiejb1) $2(.2010) $3(0811)
@@ -585,17 +622,17 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
      If n1 and n2 exist with a dash "-" between them "10-20" all values between
      and including n1 and n2 are changed to a new value.
 
-  example: renumFiles.pl -f '(mwlog\\.wfiejb)(\\d+)(\\..*)' -r 2:5:15 
+  example: bulkrn.pl -f '(mwlog\\.wfiejb)(\\d+)(\\..*)' -r 2:5:15 
 
   Above, only n1 and nn are specified as options, all \$2 back-reference values
   that match 5 will be incrmented by 10 (nn-n1).
 
-  example: renumFiles.pl -f '(mwlog\\.wfiejb)(\\d+)(\\..*)' -r 2:5-:15 
+  example: bulkrn.pl -f '(mwlog\\.wfiejb)(\\d+)(\\..*)' -r 2:5-:15 
 
   Above, only n1 and nn are specified as options, all \$2 back-reference values
   that match 5 and above will be incrmented by 10 (nn-n1).
 
-  example: renumFiles.pl -f '(mwlog\\.wfiejb)(\\d+)(\\..*)' -r 2:5-7:15
+  example: bulkrn.pl -f '(mwlog\\.wfiejb)(\\d+)(\\..*)' -r 2:5-7:15
 
   Above, n1-n2 and nn are specified as options, only \$2 back-reference values
   that match 5 thru 7 are incrmented by 10. 
@@ -612,6 +649,10 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
 
   --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
   A substitution pattern that changes some portion of the filename if found.
+  The back-references \$1,\$2,\$3 may be used in the "matching" portion of the
+  string substitution equation to refer to the back-refs in the original
+  --filePat parameter. This is useful for upper and lowercasing portions of
+  a filename.
 
   --help|-h
   Output this help text.
@@ -626,27 +667,27 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
 
   --verbose | -v
   Print details of the renaming process.
-  There are 2 levels of verbosity "-v" and "-v -v"
+  There are 3 levels of verbosity "-v", "-v -v" and "-v -v -v"
 
-  (See: "perldoc renumFiles.pl" for more details and examples of use.)
+  (See: "perldoc bulkrn.pl" for more details and examples of use.)
 _EOF_
 
    exit;
 
 }
 
-=head1 renumFiles.pl Version (0.0.2)
+=head1 bulkrn.pl Version (0.0.2)
 
     Renumber Files (Safely) script.
 
 =head1 SYNOPSIS
 
-  usage: renumFiles.pl [-h|-t|-v-|-x]
-                        -f [RegexpWithBackRefs]
-                       [-r [br:n1|n1-n2:nn[!]]]
-                       [-s [SequentialIncrement]]
-                       [-d [ZeroPaddedLength]]
-                       [-c [SubstitutionString]]
+  usage: bulkrn.pl [-h|-t|-v-|-x]
+                    -f [RegexpWithBackRefs]
+                   [-r [br:n1|n1-n2:nn[!]]]
+                   [-s [SequentialIncrement]]
+                   [-d [ZeroPaddedLength]]
+                   [-c [SubstitutionString]]
 
   -filePat|-f [RegexpWithBackRefs]
   A regexp that matches to a file in the current directory and splits it into as
@@ -667,11 +708,16 @@ _EOF_
   --test|-t 
   Perform a test only.
 
-  --verbose|-v
-  Turn on verbose mode.
+  --verbose | -v
+  Print details of the renaming process.
+  There are 3 levels of verbosity "-v", "-v -v" and "-v -v -v"
 
   --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
   A substitution pattern that changes some portion of the filename if found.
+  The back-references \$1,\$2,\$3 may be used in the "matching" portion of the
+  string substitution equation to refer to the back-refs in the original
+  --filePat parameter. This is useful for upper and lowercasing portions of
+  a filename.
 
   --help|-h
   Output this help text.
@@ -690,14 +736,28 @@ _EOF_
 
 =head1 DESCRIPTION
 
-  The script performs flexible renumbering and resequencing of numberic values
-  embeded into filenames. It performs safe rename operations by first simulating
-  the rename process using all of the file names in the current directory, but
-  only against a hash, so that actual renames are not done. If a file over-write
-  condition is encountered, the acutal file rename process is not performed.
-  If a file over-write condition is detected during the actual file renaming
-  process, the process is aborted at that point, and all file renames done to
-  that point are un-done.
+  This script performs flexible renaming, renumbering and resequencing of
+  numberic values embeded into filenames. It performs safe rename operations
+  by first simulating the rename process using all of the file names in the
+  current directory, but only against a hash, so that actual renames are not
+  done. If a file over-write condition is encountered, the acutal file rename
+  process is not performed. If a file over-write condition is detected during
+  the actual file renaming process, the process is aborted at that point, and
+  all file renames done to that point are un-done.
+
+  By default, the rename process only runs in "test" mode, and you must add the
+  -go option to perform the actual rename commands against the file system.
+  This guards against the possibility of loosing "file name" information in the
+  case where the rename parameters are incorrect, and the renames are performed
+  (with no overwrite conditions, and are not undone), and as a result, all
+  files have been renamed as simple number strings.
+  So, Always check your final results first before committing with the -go
+  option.
+
+  Again, by default (even with the -go option), a simulated test is always
+  run to ensure that no data-loss occurs before the actual file renames are
+  performed. This default pre-test can be disabled by the [--run-only | -x]
+  option. This is especially useful when using this program within a script.
 
 =head1 AUTHOR - David Sidlo
 
@@ -707,25 +767,28 @@ _EOF_
 
 =head2 Examples...
 
-  ./renumFiles.pl -f 'mwlog'
+  ./bulkrn.pl -f 'mwlog'
   List the files that match to mwlog in the current directory.
 
-  ./renumFiles.pl -f 'mwlog' -c 's/mwlog/mxlog/'
+  ./bulkrn.pl -f 'mwlog' -c 's/mwlog/mxlog/' -go
   Changes the file names that match mwlog in the current directory to mxlog.
 
-  ./renumFiles.pl -f 'mxlog\.wfiejb(\d+)(\.\d+)'
+  ./bulkrn.pl -f 'mxlog\.wfiejb(\d+)(\.\d+)'
   List the files that match to mwlog in the current directory.
   See what portions of the file name are captured in upto 3 back reference
   values.
 
-  ./renumFiles.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:300 -s 1
+  ./bulkrn.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:300 -s 1 -go
   Renumber the value after wfiejb from 1-n to 300-n resequencing the value with
   an increment of 1.
 
-  ./renumFiles.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:2 -s 2 -d 3 -c 's/mxlog/mwlog/'
+  ./bulkrn.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:2 -s 2 -d 3 -c 's/mxlog/mwlog/' -go
   Renumber the value after wfiejb from 1-n to 2-n resequencing the value with an
   increment of 2, formatting the number with 3 digits and leading zeros, and
   changing "mxlog" to "mwlog".
+
+  ./bulkrn.pl -f '(mwlog.wfiejb).*' -c 's/($1)/\U$1\E/' -go
+  Uppercase the text portion of the file name.
 
 =cut
 
