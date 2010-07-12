@@ -4,17 +4,6 @@
 # Renumber files.
 #
 
-#
-# Todo:
-# * Faster Test Failure...
-#   If existing file is not in the set of files that will be renamed,
-#   and overwrite will occur.
-#   Hash-Check to see if file that is in the way is part of the input set.
-# * Check for condition where multiple files are rename to the same file name.
-# * Test results should output as original file and final file.
-# - Support n back-references.
-#
-
 use Getopt::Long;
 
 use strict;
@@ -49,6 +38,8 @@ if ($runOpt) {
     $testOpt = 0;
 }
 
+my @fn; # File name back references.
+
 # Just run a File Pattern Test...
 if ( ($fnPat ne '') && ($reNums == undef) && ($substOpt eq '') ) {
     print "Testing the FilePattern...\n";
@@ -58,14 +49,17 @@ if ( ($fnPat ne '') && ($reNums == undef) && ($substOpt eq '') ) {
 	my $ln = $fn;
 	# print "> $fn\n";
 	if ($ln =~ m/${fnPat}/) {
+	    $fn[1] = $1; $fn[2] = $2; $fn[3] = $3;
+	    $fn[4] = $4; $fn[5] = $5; $fn[6] = $6;
+	    $fn[7] = $7; $fn[8] = $8; $fn[9] = $9;
 	    # print "==> $fn\n";
-	    # $fn[1] = $1; $fn[2] = $2; $fn[3] = $3;
-	    # $fn[4] = $3; $fn[5] = $3; $fn[6] = $3;
-	    # $fn[7] = $3; $fn[8] = $3; $fn[9] = $3;
-	    my $fn1 = $1;
-	    my $fn2 = $2;
-	    my $fn3 = $3;
-            print "FilePattern Test: $ln => \$1($fn1) \$2($fn2) \$3($fn3)\n";
+            print "FilePattern Test: $ln =br=> ";
+	    for (my $i=1; $i<=$#fn; $i++) {
+		if ($fn[$i]) {
+		    print "$i\($fn[$i]\) ";
+		}
+	    }
+	    print "\n";
         }
     }
     close $DF;
@@ -95,12 +89,12 @@ if ($reNums ne '') {
 	die "Renumber Values Must be Integers! [br:n1|n1-n2:nn] [$br:$n1|$n1-$n2:$nn]\n";
     }
 
-    if (($br > 3) || ($br < 1)) {
-	die "Back Reference Value must be LessThan 3 and GreaterThan 1! [br] [$br]\n";
+    if (($br > 9) || ($br <= 1)) {
+	die "Back Reference Value must be LessThan 3 and GreaterThan or EqualTo 1! [br] [$br]\n";
     }
 
     if ($n2 =~ /\d+/) {
-	die "Parameter Error [br:n1-n2:nn] [$br:$n1-$n2:$nn] n2 must be greater-than or equal-to n1!\n" if ($n2 < $n1);
+	die "Parameter Error [br:n1-n2:nn] [$br:$n1-$n2:$nn] n2 must be a numberic value!\n" if ($n2 < $n1);
     }
 }
 
@@ -150,38 +144,32 @@ if ($#procFiles < 0) {
     die "Your regexp --filePat \'$fnPat\' parameter does not match any files in the current directory!\n";
 }
 
-if ($seqOpt) {
+if ($reNums && $seqOpt) {
     foreach my $fn (@procFiles) {
 	my $ln = $fn;
 	# print "> $fn\n";
 	if ($ln =~ m/${fnPat}/) {
-	    my $fn1 = $1;
-	    my $fn2 = $2;
-	    my $fn3 = $3;
-	    die "The Filename RegExp must return at least 1 Back Reference.\n" if (($br == 1) && ($fn1 eq ''));
-	    die "The Filename RegExp must return at least 2 Back Reference.\n" if (($br == 2) && ($fn2 eq ''));
-	    die "The Filename RegExp must return at least 3 Back Reference.\n" if (($br == 3) && ($fn3 eq ''));
+	    $fn[1] = $1; $fn[2] = $2; $fn[3] = $3;
+	    $fn[4] = $4; $fn[5] = $5; $fn[6] = $6;
+	    $fn[7] = $7; $fn[8] = $8; $fn[9] = $9;
 
-	    die "Back Reference 1 must return a integer value.\n" if (($br == 1) && ($fn1 !~ /\d+/));
-	    die "Back Reference 2 must return a integer value.\n" if (($br == 2) && ($fn2 !~ /\d+/));
-	    die "Back Reference 3 must return a integer value.\n" if (($br == 3) && ($fn3 !~ /\d+/));
+	    for (my $i=$#fn; $i>0; $i--) {
+		if ($fn[$i]) {
+		    if ($br > $i) {
+			die "The Filename RegExp must return at least [$i] Back References.\n";
+		    }
+		    last;
+		}
+	    }
+	    die "Back Reference [$br] must return a integer value.\n" if ($fn[$br] !~ /\d+/);
 
-	    my $procFn = 0;
+ 	    my $procFn = 0;
 	    my $fVal;
-	    if ($br == 1) {
-		if ( ($fn1 >= $n1) && (($n2 eq '') || ($fn1 <= $n2)) ) {
+	    # print "-> fn[$br]: ($fn[$br])\n";
+            if ($reNums) {
+		if (($fn[$br] >= $n1) && (($n2 eq '') || ($fn[$br] <= $n2))) {
 		    $procFn = 1;
-		    $fVal = $fn1;
-		}
-	    } elsif ($br == 2) {
-		if ( ($fn2 >= $n1) && (($n2 eq '') || ($fn2 <= $n2)) ) {
-		    $procFn = 1;
-		    $fVal = $fn2;
-		}
-	    } elsif ($br == 3) {
-		if ( ($fn3 >= $n1) && (($n2 eq '') || ($fn3 <= $n2)) ) {
-		    $procFn = 1;
-		    $fVal = $fn3;
+		    $fVal = $fn[$br];
 		}
 	    }
 
@@ -219,36 +207,30 @@ if ($testOpt || (!$roOpt)) {
 	# print "> $fn\n";
 	if ($ln =~ m/${fnPat}/) {
 	    # print "==> $fn\n";
-	    my $fn1 = $1;
-	    my $fn2 = $2;
-	    my $fn3 = $3;
+	    $fn[1] = $1; $fn[2] = $2; $fn[3] = $3;
+	    $fn[4] = $4; $fn[5] = $5; $fn[6] = $6;
+	    $fn[7] = $7; $fn[8] = $8; $fn[9] = $9;
 
-	    die "Test: The Filename RegExp must return at least 1 Back Reference.\n" if (($br == 1) && ($fn1 eq ''));
-	    die "Test: The Filename RegExp must return at least 2 Back Reference.\n" if (($br == 2) && ($fn2 eq ''));
-	    die "Test: The Filename RegExp must return at least 3 Back Reference.\n" if (($br == 3) && ($fn3 eq ''));
-
-	    die "Test: Back Reference 1 must return a integer value.\n" if (($br == 1) && ($fn1 !~ /\d+/));
-	    die "Test: Back Reference 2 must return a integer value.\n" if (($br == 2) && ($fn2 !~ /\d+/));
-	    die "Test: Back Reference 3 must return a integer value.\n" if (($br == 3) && ($fn3 !~ /\d+/));
+	    if ($reNums) {
+		for (my $i=$#fn; $i>0; $i--) {
+		    if ($fn[$i]) {
+			if ($br > $i) {
+			    die "The Filename RegExp must return at least [$i] Back References.\n";
+			}
+			last;
+		    }
+		}
+		die "Back Reference [$br] must return a integer value.\n" if ($fn[$br] !~ /\d+/);
+	    }
 
 	    my $procFn = 0;
 	    my $fVal;
+ 	    my $procFn = 0;
+	    my $fVal;
             if ($reNums) {
-	        if ($br == 1) {
-		    if ( ($fn1 >= $n1) && (($n2 eq '') || ($fn1 <= $n2)) ) {
-			$procFn = 1;
-			$fVal = $fn1;
-		    }
-		} elsif ($br == 2) {
-		    if ( ($fn2 >= $n1) && (($n2 eq '') || ($fn2 <= $n2)) ) {
-			$procFn = 1;
-			$fVal = $fn2;
-		    }
-		} elsif ($br == 3) {
-		    if ( ($fn3 >= $n1) && (($n2 eq '') || ($fn3 <= $n2)) ) {
-			$procFn = 1;
-			$fVal = $fn3;
-		    }
+		if (($fn[$br] >= $n1) && (($n2 eq '') || ($fn[$br] <= $n2))) {
+		    $procFn = 1;
+		    $fVal = $fn[$br];
 		}
 	    }
 
@@ -266,29 +248,35 @@ if ($testOpt || (!$roOpt)) {
 		
 		# print "=> 1[$fn1] 2[$fn2] 3[$fn3] f[$fVal] nDiff[$nDiff] x[$xVal] \n";
 
-		my $newFn;
+		my $newFn = "";
 		if ($reNums) {
-		    if ($br == 1) {
-			$newFn = $xVal.$fn2.$fn3;
-		    }
-		    if ($br == 2) {
-			$newFn = $fn1.$xVal.$fn3;
-		    }
-		    if ($br == 3) {
-			$newFn = $fn1.$fn2.$xVal;
+		    # Bring back regs together to rebuild the file name...
+		    for (my $i=1; $i<=$#fn; $i++) {
+			if ($br == $i) {
+			    # but, use the new number in place of (br).
+			    $newFn .= $xVal;
+			} else {
+			    $newFn .= $fn[$i];
+			}
 		    }
 		} elsif ($substOpt) {
 		    $newFn = $ln;
 		}
+
+		# print "..> newFn[$newFn]\n";
 		
 		# --change
 		if ($substOpt) {
 		    my $xFn;
 		    
 		    my $s1a = $s1;
-		    $s1a =~ s/[\$\\]1/($fn1)/g;
-		    $s1a =~ s/[\$\\]2/($fn2)/g;
-		    $s1a =~ s/[\$\\]3/($fn3)/g;
+		    # Replace $1..9 to Captured BackRefs for match portion of -c substitution.
+		    for (my $i=1; $i<=$#fn; $i++) {
+			if ($s1a =~ /[\$\\]${i}/) {
+			    my $fx = $fn[$i];
+			    $s1a =~ s/[\$\\]${i}/\(${fx}\)/g;
+			}
+		    }
 
 		    eval  "\$xFn = \"$newFn\"; \$xFn =~ s$ss${s1a}$ss${s2}$ss${s3};";
 		    # print "==> [\$xFn = \"$newFn\"; \$xFn =~ s$ss$s1a$ss$s2$ss$s3;] xFn[$xFn] \$\@[$@]\n";
@@ -411,36 +399,28 @@ foreach my $fn (@procFiles) {
     # print "> $fn\n";
     if ($ln =~ m/${fnPat}/) {
 	# print "==> $fn\n";
-	my $fn1 = $1;
-	my $fn2 = $2;
-	my $fn3 = $3;
+	$fn[1] = $1; $fn[2] = $2; $fn[3] = $3;
+	$fn[4] = $4; $fn[5] = $5; $fn[6] = $6;
+	$fn[7] = $7; $fn[8] = $8; $fn[9] = $9;
 
-	die "The Filename RegExp must return at least 1 Back Reference.\n" if (($br == 1) && ($fn1 eq ''));
-	die "The Filename RegExp must return at least 2 Back Reference.\n" if (($br == 2) && ($fn2 eq ''));
-	die "The Filename RegExp must return at least 3 Back Reference.\n" if (($br == 3) && ($fn3 eq ''));
-
-	die "Back Reference 1 must return a integer value.\n" if (($br == 1) && ($fn1 !~ /\d+/));
-	die "Back Reference 2 must return a integer value.\n" if (($br == 2) && ($fn2 !~ /\d+/));
-	die "Back Reference 3 must return a integer value.\n" if (($br == 3) && ($fn3 !~ /\d+/));
+	if ($reNums) {
+	    for (my $i=$#fn; $i>0; $i--) {
+		if ($fn[$i]) {
+		    if ($br > $i) {
+			die "The Filename RegExp must return at least [$i] Back References.\n";
+		    }
+		    last;
+		}
+	    }
+	    die "Back Reference [$br] must return a integer value.\n" if ($fn[$br] !~ /\d+/);
+	}
 
 	my $procFn = 0;
 	my $fVal;
 	if ($reNums) {
-	    if ($br == 1) {
-		if ( ($fn1 >= $n1) && (($n2 eq '') || ($fn1 <= $n2)) ) {
-		    $procFn = 1;
-		    $fVal = $fn1;
-		}
-	    } elsif ($br == 2) {
-		if ( ($fn2 >= $n1) && (($n2 eq '') || ($fn2 <= $n2)) ) {
-		    $procFn = 1;
-		    $fVal = $fn2;
-		}
-	    } elsif ($br == 3) {
-		if ( ($fn3 >= $n1) && (($n2 eq '') || ($fn3 <= $n2)) ) {
-		    $procFn = 1;
-		    $fVal = $fn3;
-		}
+	    if (($fn[$br] >= $n1) && (($n2 eq '') || ($fn[$br] <= $n2))) {
+		$procFn = 1;
+		$fVal = $fn[$br];
 	    }
 	}
 
@@ -458,14 +438,14 @@ foreach my $fn (@procFiles) {
 
 	    my $newFn;
 	    if ($reNums) {
-		if ($br == 1) {
-		    $newFn = $xVal.$fn2.$fn3;
-		}
-		if ($br == 2) {
-		    $newFn = $fn1.$xVal.$fn3;
-		}
-		if ($br == 3) {
-		    $newFn = $fn1.$fn2.$xVal;
+		# Bring back regs together to rebuild the file name...
+		for (my $i=1; $i<=$#fn; $i++) {
+		    if ($br == $i) {
+			# but, use the new number in place of (br).
+			$newFn .= $xVal;
+		    } else {
+			$newFn .= $fn[$i];
+		    }
 		}
 	    } elsif ($substOpt) {
 		    $newFn = $ln;
@@ -476,9 +456,13 @@ foreach my $fn (@procFiles) {
 		my $xFn;
 
 		my $s1a = $s1;
-		$s1a =~ s/[\$\\]1/($fn1)/g;
-		$s1a =~ s/[\$\\]2/($fn2)/g;
-		$s1a =~ s/[\$\\]3/($fn3)/g;
+		# Replace $1..9 to Captured BackRefs for match portion of -c substitution.
+		for (my $i=1; $i<=$#fn; $i++) {
+		    if ($s1a =~ /[\$\\]${i}/) {
+			my $fx = $fn[$i];
+			$s1a =~ s/[\$\\]${i}/\(${fx}\)/g;
+		    }
+		}
 
 		eval  "\$xFn = \"$newFn\"; \$xFn =~ s$ss${s1a}$ss${s2}$ss${s3};";
 		# print "==> [\$xFn = \"$newFn\"; \$xFn =~ s$ss$s1a$ss$s2$ss$s3;] xFn[$xFn] \$\@[$@]\n";
@@ -499,8 +483,7 @@ foreach my $fn (@procFiles) {
 		    die "\n*** Rename aborted because multiple files would be renamed to a the same name! ($newFn)\n";
 		} else {
 		    $FinRn{$newFn} = $fn;
-		}
-	    } else {
+		}	    } else {
 		# File exists in the current dir or path.
 		if (exists $FinRn{$newFn}) {
 		    # Overwrites because multiple files are renamed to the same file name.
@@ -622,8 +605,11 @@ bulkrn.pl - ReNumber Files  Version ($VERSION)
 
   Requires that the first argument, be defined as a pattern that matches to
   a set of file-names of interest, where the pattern returns upto
-  3 back-reference values. The parameter br is the Back Reference value which
-  will be changed into a new number.
+  9 back-reference values. The parameter br is the Back Reference value which
+  will be changed into a new number. So the return value of that back reference
+  must be an integer value. Every portion of the file name that will
+  become part of the new name must be held in a back reference. If it is not,
+  that portion of the file name will be removed from the new file name.
 
   By only supplying the [--filePat | -f] option and a file pattern, you can test
   that your file pattern is picking up the files that you expect to rename. And,
@@ -713,7 +699,7 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
 
   --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
   A substitution pattern that changes some portion of the filename if found.
-  The back-references \$1,\$2,\$3 may be used in the "matching" portion of the
+  The back-references \$1..\$9 may be used in the "matching" portion of the
   string substitution equation to refer to the back-refs in the original
   --filePat parameter. This is useful for upper and lowercasing portions of
   a filename.
@@ -755,10 +741,12 @@ _EOF_
 
   -filePat|-f [RegexpWithBackRefs]
   A regexp that matches to a file in the current directory and splits it into as
-  many as 3 back-reference values where at least one of the back-reference
-  values is always an integer field, which will be renumbered.
-  Using this option alone will list the files that match the regexp in the
-  current directory.
+  many as 9 back-reference values where the back-reference values 
+  (referenced by the -reNum/br) must always be an integer field, which will
+  be renumbered. Using this option alone will list the files that match the
+  regexp in the current directory.  Every portion of the file name that will
+  become part of the new name must be held in a back reference. If it is not,
+  that portion of the file name will be removed from the new file name.
 
   -reNum|-r [br:n1|n1-|n1-n2:nn[!]]
       br: The back-reference index whos value will change to nn 
@@ -778,7 +766,7 @@ _EOF_
 
   --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
   A substitution pattern that changes some portion of the filename if found.
-  The back-references \$1,\$2,\$3 may be used in the "matching" portion of the
+  The back-references \$1..\$9 may be used in the "matching" portion of the
   string substitution equation to refer to the back-refs in the original
   --filePat parameter. This is useful for upper and lowercasing portions of
   a filename.
@@ -839,7 +827,7 @@ _EOF_
 
   ./bulkrn.pl -f 'mxlog\.wfiejb(\d+)(\.\d+)'
   List the files that match to mwlog in the current directory.
-  See what portions of the file name are captured in upto 3 back reference
+  See what portions of the file name are captured in upto 9 back reference
   values.
 
   ./bulkrn.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:300 -s 1 -go

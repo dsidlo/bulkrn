@@ -31,8 +31,11 @@ bulkrn.pl - ReNumber Files  Version (0.0.2)
 
   Requires that the first argument, be defined as a pattern that matches to
   a set of file-names of interest, where the pattern returns upto
-  3 back-reference values. The parameter br is the Back Reference value which
-  will be changed into a new number.
+  9 back-reference values. The parameter br is the Back Reference value which
+  will be changed into a new number. So the return value of that back reference
+  must be an integer value. Every portion of the file name that will
+  become part of the new name must be held in a back reference. If it is not,
+  that portion of the file name will be removed from the new file name.
 
   By only supplying the [--filePat | -f] option and a file pattern, you can test
   that your file pattern is picking up the files that you expect to rename. And,
@@ -83,6 +86,18 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
      If n1 and n2 exist with a dash "-" between them "10-20" all values between
      and including n1 and n2 are changed to a new value.
 
+  The regexp file pattern must contain back-references for all portions of the
+  original file name that you want to preserve, including a back reference for
+  the portion that contains all numerics (that will be renumbered).
+
+  For example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5:15 
+  Will change mwlog.wfiejb5.20100701 to mwlog.wfiejb5.20100701.
+
+  But,: bulkrn.pl -f 'mwlog\.wfiejb(\d+)(\..*)' -r 1:5:15 
+  Will change mwlog.wfiejb5.20100701 to 5.20100701.
+  Because, the "mwlog\.wfiejb" portion of the file name is not enclosed in
+  parens and will not be preserved
+   
   example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5:15 
 
   Above, only n1 and nn are specified as options, all $2 back-reference values
@@ -110,7 +125,7 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
 
   --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
   A substitution pattern that changes some portion of the filename if found.
-  The back-references $1,$2,$3 may be used in the "matching" portion of the
+  The back-references $1..$9 may be used in the "matching" portion of the
   string substitution equation to refer to the back-refs in the original
   --filePat parameter. This is useful for upper and lowercasing portions of
   a filename.
