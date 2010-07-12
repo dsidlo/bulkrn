@@ -4,13 +4,25 @@
 # Renumber files.
 #
 
+# Todo:
+# * Add ability to auto-create dirs and the new filename path.
+# * List the new dirs that autoDir creates.
+# * Added special handling for Windows|Dos FS inablility to distinguish between
+#   upper and lowercase characters in file names.
+#   * This may require more consisten handling across the code by
+#     creating actual routines for the test's pseudo fs rename.
+#     And a pseudo file test (-f) which does not distinguish between upper and
+#     lower for windows/dos.
+#     But, keep in mind that we still want to perform the rename under windows|dos
+#     because we may just want the change of case in the file name.
+
 use Getopt::Long;
 
 use strict;
 
 my $VERSION = "0.0.2";
 
-my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt, $roOpt, $substOpt, $runOpt);
+my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt, $roOpt, $substOpt, $runOpt, $dirOpt);
 
 # By Default we always only test.
 $testOpt = 1;
@@ -24,6 +36,7 @@ my $retGetOpts = GetOptions ( "filePat|f=s"    => \$fnPat,    # The file name re
 			      "go"             => \$runOpt,   # Run this baby!
 			      "verbose|v+"     => \$verbOpt,  # Verbose Output
 			      "run-only|x"     => \$roOpt,    # Run Only. No test before running 
+			      "autoDir|a"      => \$dirOpt,   # Auto create missing dirs.
     );
 
 # print "=> (\$fnPat\:$fnPat, \$reNums\:$reNums, \$seqOpt\:$seqOpt, \$helpOpt\:$helpOpt,"
@@ -89,8 +102,8 @@ if ($reNums ne '') {
 	die "Renumber Values Must be Integers! [br:n1|n1-n2:nn] [$br:$n1|$n1-$n2:$nn]\n";
     }
 
-    if (($br > 9) || ($br <= 1)) {
-	die "Back Reference Value must be LessThan 3 and GreaterThan or EqualTo 1! [br] [$br]\n";
+    if (($br > 9) || ($br < 1)) {
+	die "Back Reference Value must be between 9 and 1! [br] [$br]\n";
     }
 
     if ($n2 =~ /\d+/) {
@@ -127,6 +140,7 @@ my %sqFn;
 my @procFiles;
 my @finRn;
 my %FinRn;
+my %newDirs;
 
 if ($testOpt) {
     $verbOpt = 2 if ($verbOpt < 2);
@@ -289,6 +303,12 @@ if ($testOpt || (!$roOpt)) {
 
 		# print "==> [$newFn] Exists:".(exists $testRns{$newFn})." [$testRns{$newFn}]\n";
 		if (! exists $testRns{$newFn}) {
+		    # See if file-path directories already exists.
+		    my $chkd = &checkDirs(1, $newFn, \%newDirs);
+		    # print "==> chkd[$chkd] dirOpt[$dirOpt]\n";
+		    if ($chkd && ($dirOpt eq '')) {
+			print "Test: *** New directory(ies) ($newFn) would have to be created, perhaps you should use the -autoDir option!\n";
+		    }
 		    # Perform rename operation on psudeo dir.
 		    $testRns{$newFn} = $testRns{$fn};
 		    undef $testRns{$fn};
@@ -314,12 +334,13 @@ if ($testOpt || (!$roOpt)) {
 			$rn2{$fn} = $newFn;
 			$FinRn{$newFn} = $fn;
 		    } else {
+			# New file name does not occur in the original file set.
 			# If Clashing file name is not a file in our set of files, we have an over-write condition.
-			print "\nTest: *** Rename would be aborted because files outside of the renamed set would be lost! ($newFn)\n";
+			print "\nTest: *** Rename would be aborted because files outside of the renamed [file set] would be lost! ($newFn)\n";
 			die;
 		    }
 		    if (($xVal < $n1) && ($xVal >$n2)) {
-			print "\nTest: *** Rename would be aborted because files outside of the renamed range would be lost! ($newFn)\n";
+			print "\nTest: *** Rename would be aborted because files outside of the renamed [number range] would be lost! ($newFn)\n";
 			die;
 		    }
 		}
@@ -378,6 +399,12 @@ if ($testOpt || (!$roOpt)) {
 	    foreach my $fn (sort @finRn) {
 		&verbose(2,"   $fn  =was=  $FinRn{$fn}\n");
 	    }
+	    if (keys %newDirs) {
+		&verbose(2,"=== New Dirs to Create...\n");
+		foreach my $dir (sort (keys %newDirs)) {
+		    &verbose(2,"   $dir\n");
+		}
+	    }
 	}
 	exit;
     } else {
@@ -391,6 +418,7 @@ if ($testOpt || (!$roOpt)) {
 my (%rn2, %rn3);
 my @rnDone;
 my %FinRn;
+my %newDirs;
 
 &verbose(1,"--- Performing Rename Operations...\n");
 
@@ -448,7 +476,7 @@ foreach my $fn (@procFiles) {
 		    }
 		}
 	    } elsif ($substOpt) {
-		    $newFn = $ln;
+		$newFn = $ln;
 	    }
 
 	    # --change
@@ -473,7 +501,14 @@ foreach my $fn (@procFiles) {
 		}
 	    }
 
+	    # print "==> newFN[$newFn] exists(".(-f $newFn).")\n";
 	    if (! -f $newFn) {
+		# See if file-path directories already exists.
+		my $chkd = &checkDirs(0, $newFn, \%newDirs);
+		# print "==> chkd[$chkd] dirOpt[$dirOpt]\n";
+		if ($chkd && ($dirOpt eq '')) {
+		    print "Test: *** New directory(ies) ($newFn) would have to be created, perhaps you should use the -autoDir option!\n";
+		}
 		# File is not in the current dir or path.
 		rename ($fn, $newFn) || print "Failed to rename file ($fn -> $newFn)\n";
 		push (@rnDone, "$fn:$newFn");
@@ -483,24 +518,38 @@ foreach my $fn (@procFiles) {
 		    die "\n*** Rename aborted because multiple files would be renamed to a the same name! ($newFn)\n";
 		} else {
 		    $FinRn{$newFn} = $fn;
-		}	    } else {
+		}
+	    } else {
 		# File exists in the current dir or path.
 		if (exists $FinRn{$newFn}) {
 		    # Overwrites because multiple files are renamed to the same file name.
 		    die "\n*** Rename aborted because multiple files would be renamed to a the same name! ($newFn)\n";
 		}
+		# print "==> [$newFn] origFn[".join(", ",(keys %origFn))."]\n";
 		if (exists $origFn{$newFn}) {
 		    # Renaming this file requires 2 stages to eliminate file overwrites.
 		    &verbose(2,"Renaming $fn to $newFn requires a 2-Phase Rename.\n");
 		    $rn2{$fn} = $newFn;
 		} else {
+		    # New file name does not occur in the original file set.
 		    # If Clashing file name is not a file in our set of files, we have an over-write condition.
-		    print "\n*** Rename aborted because files outside of the renamed set would be lost! ($newFn)\n";
-		    &undoRenames();
-		    die;
+		    # With Window/Dos We can end up here even if the newFile does not actually exist.
+		    # This is because the Windows/Dos fs does not distinguish between upper and lower case file names.
+		    if (   ($ENV{OS} =~ /(windows|dos)/i)
+			&& ( (-f $fn) && (-f $newFn) && ($fn =~ /${newFn}/i) ) ){
+			# print "*** You are receiving this error because, on a Windows system, file names are not distiguished by case!\n";
+			# print "*** Thus, there is an overwrite condition! Original File:[$fn] New File:[$newFn]\n";
+			# Renaming this file requires 2 stages to eliminate file overwrites.
+			&verbose(2,"Windows\|DOS: Renaming $fn to $newFn requires a 2-Phase Rename.\n");
+			$rn2{$fn} = $newFn;
+		    } else {
+			print "\n*** Rename aborted because files outside of the renamed [set] would be lost! ($newFn)\n";
+			&undoRenames();
+			die;
+		    }
 		}
 		if (($xVal < $n1) && ($xVal >$n2)) {
-		    print "\n*** Rename aborted because files outside of the renamed range would be lost! ($newFn)\n";
+		    print "\n*** Rename aborted because files outside of the renamed [range] would be lost! ($newFn)\n";
 		    &undoRenames();
 		    die;
 		}
@@ -562,6 +611,45 @@ sub undoRenames {
     print "Rename Actions have been undone.\n";
 }
 
+sub checkDirs () {
+    my ($tst, $newFn, $nd) = @_;
+
+    my $fromRoot = 0;
+    if ($newFn =~ /^\//) {
+	$fromRoot = 1;
+    }
+    my @dirs = split('\/', $newFn);
+    # Assume last item in the array is the file name.
+    my $fn = pop @dirs;
+    my $madeNewDir = 0;
+    my $dp = "";
+    for (my $i=0; $i<=$#dirs; $i++) {
+	if ($fromRoot) {
+	    $dp .= '/';
+	}
+	$dp .= $dirs[$i].'/';
+	if ($tst) {
+	    if (!exists $nd->{$dp}) {
+		$nd->{$dp} = 1;
+		$madeNewDir = 1;
+	    }
+	} elsif ($dirOpt) {
+	    if (! -d $dp) {
+		mkdir $dp || die "Failed to create directory ($dp) for ($newFn)!\n";
+		$nd->{$dp} = 1;
+		$madeNewDir = 1;
+	    }
+	} elsif (!$testOpt) {
+	    if (! -d $dp) {
+		die "The directory ($dp) does not exist! Perhapse you need to use the -autoDir option!";
+	    }
+	}
+    }
+
+    # print "=> madeNewDir[$madeNewDir]\n";
+    return $madeNewDir;
+}
+
 sub verbose {
     my ($lvl, $msg) = @_;
 
@@ -598,7 +686,7 @@ bulkrn.pl - ReNumber Files  Version ($VERSION)
   renumber some portion of the file name, for the set of files that match the -f
   file pattern.
 
-  usage: bulkrn.pl [-h|-t|-v-|-x] -f [regexpWith2BackRefs] [-r [br:n1|n1-n2:nn[!]]]
+  usage: bulkrn.pl [-a|-h|-t|-v-|-x] -f [regexpWith2BackRefs] [-r [br:n1|n1-n2:nn[!]]]
                    [-s [SequentialIncrement]] [-d [ZeroPaddedLength]]
                    [-c [SubstitutionPattern]]
                    [-go]
@@ -693,10 +781,6 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
 
   Other options:
 
-  --format|-d [LeadingZerosFormatLength]
-  Format the new numberic value with leading zeros to a length of n.
-  example: -d 5
-
   --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
   A substitution pattern that changes some portion of the filename if found.
   The back-references \$1..\$9 may be used in the "matching" portion of the
@@ -704,12 +788,18 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
   --filePat parameter. This is useful for upper and lowercasing portions of
   a filename.
 
-  --help|-h
-  Output this help text.
-
   --reSeq|-s [SequentialIncrement] (-s 1)
   Resequence the numbers (n1-n2) begining with nn such that the new values are
   contiguous and optionaly incremented by [increment].
+
+  --format|-d [LeadingZerosFormatLength]
+  Format the new numberic value with leading zeros to a length of n.
+  example: -d 5
+
+  --autoDir|-a
+  Automatically create directories along new file paths.
+  With out this option, if new file paths do not exist, the rename operation
+  will fail.
 
   --test|-t
   Test the renumbering/renaming process against the filenames in the current
@@ -719,7 +809,10 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
   Print details of the renaming process.
   There are 3 levels of verbosity "-v", "-v -v" and "-v -v -v"
 
-  (See: "perldoc bulkrn.pl" for more details and examples of use.)
+  --help|-h
+  Output this help text.
+
+  (See: "perldoc $0" for more details and examples of use.)
 _EOF_
 
    exit;
@@ -771,20 +864,25 @@ _EOF_
   --filePat parameter. This is useful for upper and lowercasing portions of
   a filename.
 
-  --help|-h
-  Output this help text.
-
   --reSeq|-s [SequentialIncrement] (-s 1)
   Resequence the numbers (n1-n2) begining with nn such that the new values are
   contiguous and optionaly incremented by [increment].
+
+  -d [ZeroPaddedLength]
+  Format the new number with zero padding and the given fixed length.
+
+  --autoDir|-a
+  Automatically create directories along new file paths.
+  With out this option, if new file paths do not exist, the rename operation
+  will fail.
 
   --run-only|-x
   Run without first testing. But, if a file over-write is detected, rename
   operations are undone, leaving the files and file names in thier original
   state.
 
-  -d [ZeroPaddedLength]
-  Format the new number with zero padding and the given fixed length.
+  --help|-h
+  Output this help text.
 
 =head1 DESCRIPTION
 
@@ -817,7 +915,7 @@ _EOF_
 
 =head1 APPENDIX
 
-=head2 Examples...
+=head2 Examples
 
   ./bulkrn.pl -f 'mwlog'
   List the files that match to mwlog in the current directory.
@@ -841,6 +939,25 @@ _EOF_
 
   ./bulkrn.pl -f '(mwlog.wfiejb).*' -c 's/($1)/\U$1\E/' -go
   Uppercase the text portion of the file name.
+
+  Run a test to renumber the value after "wfiejb" from 30, resequencing the value in
+  incrments of 2; Placing the file into testdir/<date> where date comes from the 
+  file name; And strip the date from the file name when it is placed into its
+  destination directory.
+  ./bulkrn.pl -f '(mwlog.wfiejb)(\d+)(\.\d+)$' -r 2:1-:30 -s 2 -d 3 \
+              -c 's:((.*)\.(\d+))$:testdir\/$3\/$2:' -a
+--- Testing Rename Operations...
+*** Only Tested, no files have been renamed.
+=== Bulk Renames will be Successful. Final File List...
+   testdir/20100701/mwlog.wfiejb030  =was=  mwlog.wfiejb1.20100701
+   testdir/20100701/mwlog.wfiejb032  =was=  mwlog.wfiejb2.20100701
+   testdir/20100701/mwlog.wfiejb034  =was=  mwlog.wfiejb3.20100701
+   testdir/20100701/mwlog.wfiejb036  =was=  mwlog.wfiejb4.20100701
+   testdir/20100701/mwlog.wfiejb038  =was=  mwlog.wfiejb5.20100701
+
+=head2 References
+
+  man perlre - Perl Regular Expressions
 
 =cut
 

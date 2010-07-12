@@ -3,6 +3,7 @@
 rm -f ./MWLOG.*
 rm -f ./mwlog.*
 rm -f ./mxlog.*
+rm -fr ./testdir
 
 ./makeFiles.sh
 
@@ -92,6 +93,15 @@ echo '***** test 10 *****'
 if [ $? -eq 0 ]
 then
     echo "+++ Failed: test 10 (Program should have failed)."
+    cat lastTest.out
+    exit 1;
+fi
+
+echo '***** test 11 *****'
+./bulkrn.pl -f 'MWLOG.WFIEJB\d+\.(\d+)\.(\D+)\.(\d+)$' -c 's:((.*)\.(\d+)\.(\D+)\.(\d+))$:testdir\/$3$5\/$2:' -a -go > lastTest.out 2>&1
+if [ $? -ne 0 ]
+then
+    echo "+++ Failed: test 11."
     cat lastTest.out
     exit 1;
 fi

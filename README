@@ -24,7 +24,7 @@ bulkrn.pl - ReNumber Files  Version (0.0.2)
   renumber some portion of the file name, for the set of files that match the -f
   file pattern.
 
-  usage: bulkrn.pl [-h|-t|-v-|-x] -f [regexpWith2BackRefs] [-r [br:n1|n1-n2:nn[!]]]
+  usage: bulkrn.pl [-a|-h|-t|-v-|-x] -f [regexpWith2BackRefs] [-r [br:n1|n1-n2:nn[!]]]
                    [-s [SequentialIncrement]] [-d [ZeroPaddedLength]]
                    [-c [SubstitutionPattern]]
                    [-go]
@@ -119,10 +119,6 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
 
   Other options:
 
-  --format|-d [LeadingZerosFormatLength]
-  Format the new numberic value with leading zeros to a length of n.
-  example: -d 5
-
   --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
   A substitution pattern that changes some portion of the filename if found.
   The back-references $1..$9 may be used in the "matching" portion of the
@@ -130,12 +126,18 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
   --filePat parameter. This is useful for upper and lowercasing portions of
   a filename.
 
-  --help|-h
-  Output this help text.
-
   --reSeq|-s [SequentialIncrement] (-s 1)
   Resequence the numbers (n1-n2) begining with nn such that the new values are
   contiguous and optionaly incremented by [increment].
+
+  --format|-d [LeadingZerosFormatLength]
+  Format the new numberic value with leading zeros to a length of n.
+  example: -d 5
+
+  --autoDir|-a
+  Automatically create directories along new file paths.
+  With out this option, if new file paths do not exist, the rename operation
+  will fail.
 
   --test|-t
   Test the renumbering/renaming process against the filenames in the current
@@ -144,5 +146,8 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
   --verbose | -v
   Print details of the renaming process.
   There are 3 levels of verbosity "-v", "-v -v" and "-v -v -v"
+
+  --help|-h
+  Output this help text.
 
   (See: "perldoc bulkrn.pl" for more details and examples of use.)
