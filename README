@@ -1,19 +1,21 @@
 
 bulkrn.pl - ReNumber Files  Version (0.0.2)
 
-  Safely renumbers and/or renames numeric portions of file(s) name in the
-  current directory. Watches for filename overlap/overwrite conditions what
-  would result in a loss of a file and undoes any changes if there is a chance
-  that data-loss might occur.
+  A general purpose file name and file path transformation utility.
+
+  Safely renumbers (numeric portions of a file(s) name) and/or renames files
+  in the current directory. Watches for filename overlap/overwrite conditions
+  what would result in a loss of a file and undoes any changes if there is a
+  chance that data-loss might occur.
 
   By default, the rename process only runs in "test" mode, and you must add the
   -go option to perform the actual rename commands against the file system.
-  This guards against the possibility of loosing "file name" information in the
-  case where the rename parameters are incorrect, and the renames are performed
-  (with no overwrite conditions, and are not undone), and as a result, all
-  files have been renamed as simple number strings.
-  So, Always check your final results first before committing with the -go
-  option.
+  This guards against the possibility of loosing file data (due to file a 
+  overwrites occuring), or loosing file name information (in the case where the
+  rename parameters are incorrect, and all files have been renamed as simple
+  numeric strings).
+  So, we always try to ensure that you check your final results first before
+  committing your bulk file name changes with the -go option.
 
   Again, by default (even with the -go option), a simulated test is always
   run to ensure that no data-loss occurs before the actual file renames are
@@ -21,12 +23,12 @@ bulkrn.pl - ReNumber Files  Version (0.0.2)
   option. This is especially useful when using this program within a script.
 
   The -r and -c options may be used alone or in tandem to either rename or
-  renumber some portion of the file name, for the set of files that match the -f
-  file pattern.
+  renumber some portion of the file name, given the set of files that match
+  the -f file pattern.
 
   usage: bulkrn.pl [SourceDir]
                    [-a|-h|-t|-v-|-x] 
-                   -f [regexpWith2BackRefs] 
+                   -f [FilePattern] 
                    [-r [br:n1|n1-n2:nn[!]]]
                    [-s [SequentialIncrement]]
                    [-d [ZeroPaddedLength]]
@@ -73,64 +75,16 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
 
   $newFn = $fn1.($fn+(n2-n1)).$fn3;
 
-  The --reNum|-r parameter consists of... [br:n1|n1-n2:nn]
 
-  br: Back Reference value that is the numberic value that will be changed.
-  n1: The first numeric value that will be changed.
-  n2: The last  numeric value that will be changed.
-  nn: The numberic value that n1 will be changed to.
-      Subsequent values will be changed to n2+(nn-n1) incrementing the value
-      by the difference between n1 and nn.
-      An exclaimation-point symbol after nn (:20!) fixes the new number to that
-      single value. The "new number" value will not change relative to the 
-      Back Reference value found in the file name.
+  -reNum|-r [br:n1|n1-|n1-n2:nn[!]]
 
-  ** If n1 is specified without n2,only the files whos back-reference values
-     match n1 will be change to the new number.
-     If n1 is specified with a trailing dash "-" and n2 is not specified "10-",
-     all values from n1 and greater are changed to the new value. 
-     If n1 and n2 exist with a dash "-" between them "10-20" all values between
-     and including n1 and n2 are changed to a new value.
-
-  The regexp file pattern must contain back-references for all portions of the
-  original file name that you want to preserve, including a back reference for
-  the portion that contains all numerics (that will be renumbered).
-
-  For example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5:15 
-  Will change mwlog.wfiejb5.20100701 to mwlog.wfiejb5.20100701.
-
-  But,: bulkrn.pl -f 'mwlog\.wfiejb(\d+)(\..*)' -r 1:5:15 
-  Will change mwlog.wfiejb5.20100701 to 5.20100701.
-  Because, the "mwlog\.wfiejb" portion of the file name is not enclosed in
-  parens and will not be preserved
-   
-  example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5:15 
-
-  Above, only n1 and nn are specified as options, all $2 back-reference values
-  that match 5 will be incrmented by 10 (nn-n1).
-
-  example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5-:15 
-
-  Above, only n1 and nn are specified as options, all $2 back-reference values
-  that match 5 and above will be incrmented by 10 (nn-n1).
-
-  example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5-7:15
-
-  Above, n1-n2 and nn are specified as options, only $2 back-reference values
-  that match 5 thru 7 are incrmented by 10. 
-
-  The rename process watches for file name overlap conditions what would cause
-  a file to be overwritten and lost. If such conditions are found, the process
-  aborts after undoing all file renames that had been done thus far.
-
-  Other options:
-
-  --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
-  A substitution pattern that changes some portion of the filename if found.
-  The back-references $1..$9 may be used in the "matching" portion of the
-  string substitution equation to refer to the back-refs in the original
-  --filePat parameter. This is useful for upper and lowercasing portions of
-  a filename.
+      br: The back-reference index whos value will change to nn 
+          (which increments, or which is static).
+      n1: The Only value that will change.
+     n1-: Change all values from n1 and greater.
+   n1-n2: Change all values from n1 to n2.
+      nn: Change n1 to this new value (nn).
+     nn!: Don't increment nn relative to n1-n2. nn stays static.
 
   --reSeq|-s [SequentialIncrement] (-s 1)
   Resequence the numbers (n1-n2) begining with nn such that the new values are
@@ -139,6 +93,15 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
   --format|-d [LeadingZerosFormatLength]
   Format the new numberic value with leading zeros to a length of n.
   example: -d 5
+
+  --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
+  A substitution pattern that changes some portion of the filename if found.
+  The back-references $1..$9 may be used in the "matching" portion of the
+  string substitution equation to refer to the back-refs in the original
+  --filePat parameter. This is useful for upper and lowercasing portions of
+  a filename.
+
+  Other options:
 
   --autoDir|-a
   Automatically create directories along new file paths.
