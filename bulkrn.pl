@@ -6,11 +6,12 @@
 
 #
 # Todo:
-# - Faster Test Failure...
+# * Faster Test Failure...
 #   If existing file is not in the set of files that will be renamed,
 #   and overwrite will occur.
 #   Hash-Check to see if file that is in the way is part of the input set.
-# - Test results should output as original file and final file.
+# * Check for condition where multiple files are rename to the same file name.
+# * Test results should output as original file and final file.
 # - Support n back-references.
 #
 
@@ -58,6 +59,9 @@ if ( ($fnPat ne '') && ($reNums == undef) && ($substOpt eq '') ) {
 	# print "> $fn\n";
 	if ($ln =~ m/${fnPat}/) {
 	    # print "==> $fn\n";
+	    # $fn[1] = $1; $fn[2] = $2; $fn[3] = $3;
+	    # $fn[4] = $3; $fn[5] = $3; $fn[6] = $3;
+	    # $fn[7] = $3; $fn[8] = $3; $fn[9] = $3;
 	    my $fn1 = $1;
 	    my $fn2 = $2;
 	    my $fn3 = $3;
@@ -128,12 +132,19 @@ my %rsFn;
 my %sqFn;
 my @procFiles;
 my @finRn;
+my %FinRn;
 
 if ($testOpt) {
     $verbOpt = 2 if ($verbOpt < 2);
 }
 
 @procFiles = (sort (grep m/${fnPat}/, @allfiles));
+
+# Create a hash of the original matching file names.
+my %origFn;
+foreach my $fn (@procFiles) {
+    $origFn{$fn} = $fn;
+}
 
 if ($#procFiles < 0) {
     die "Your regexp --filePat \'$fnPat\' parameter does not match any files in the current directory!\n";
@@ -288,18 +299,39 @@ if ($testOpt || (!$roOpt)) {
 		    }
 		}
 
-		# print "==> $newFn\n";
+		# print "==> [$newFn] Exists:".(exists $testRns{$newFn})." [$testRns{$newFn}]\n";
 		if (! exists $testRns{$newFn}) {
+		    # Perform rename operation on psudeo dir.
 		    $testRns{$newFn} = $testRns{$fn};
 		    undef $testRns{$fn};
 		    push (@finRn, $newFn);
+		    if (exists $FinRn{$newFn}) {
+			# Overwrites because multiple files are renamed to the same file name.
+			print "\nTest: *** Rename would be aborted because multiple files would be renamed to a the same name! ($newFn)\n";
+			die;
+		    } else {
+			$FinRn{$newFn} = $fn;
+		    }
 		    &verbose(3,"Test: Renamed $fn to $newFn\n");
 		} else {
-		    # Renaming this file requires 2 stages to eliminate file overwrites.
-		    &verbose(3,"Test: Renaming $fn to $newFn requires a 2-Phase Rename.\n");
-		    $rn2{$fn} = $newFn;
+		    # The new file name already exists in the current dir.
+		    if (exists $FinRn{$newFn}) {
+			# Overwrites because multiple files are renamed to the same file name.
+			print "\nTest: *** Rename would be aborted because multiple files would be renamed to a the same name! ($newFn)\n";
+			die;
+		    }
+		    if (exists $origFn{$newFn}) {
+			# Renaming this file requires 2 stages to eliminate file overwrites.
+			&verbose(3,"Test: Renaming $fn to $newFn requires a 2-Phase Rename.\n");
+			$rn2{$fn} = $newFn;
+			$FinRn{$newFn} = $fn;
+		    } else {
+			# If Clashing file name is not a file in our set of files, we have an over-write condition.
+			print "\nTest: *** Rename would be aborted because files outside of the renamed set would be lost! ($newFn)\n";
+			die;
+		    }
 		    if (($xVal < $n1) && ($xVal >$n2)) {
-			&verbose(1,"\nTest: *** Rename would be aborted because files outside of the renamed range would be lost! ($newFn)\n");
+			print "\nTest: *** Rename would be aborted because files outside of the renamed range would be lost! ($newFn)\n";
 			die;
 		    }
 		}
@@ -310,28 +342,29 @@ if ($testOpt || (!$roOpt)) {
 
     if (keys %rn2) {
 
+	# 2-Phase Rename - Phase 1: Rename files to a random file name.
+	#                           to avoid overwrite conditions.
 	foreach my $rnf (keys %rn2) {
-	    my $newFn2 = $rnf."_".time()."_".rand(time());
-	    if (! exists $testRns{$newFn2}) {
-		$testRns{$newFn2} = $testRns{$rnf};
-		delete $testRns{$rnf};
-		&verbose(3,"Test: Renamed $rnf to $newFn2\n");
-		$rn3{$newFn2} = $rn2{$rnf};
-	    } else {
-		print "\nTest: *** Phase1 Existing file would be over-written lost! ($newFn2)\n";
-		print "Test: ...\n";
-		print "Test: Rename Actions would be undone.\n";
-		if ($testOpt) {
-		    print "*** Test Failed!\n";
+	    my $fileRenamed = 0;
+	    do {
+		my $newFn2 = $rnf."_".time()."_".rand(time());
+		if (! exists $testRns{$newFn2}) {
+		    # Perform rename operation on psudeo dir.
+		    $testRns{$newFn2} = $testRns{$rnf};
+		    delete $testRns{$rnf};
+		    &verbose(3,"Test: Renamed $rnf to $newFn2\n");
+		    $rn3{$newFn2} = $rn2{$rnf};
 		} else {
-		    print "*** Test Failed! Actual renames will not be performed!\n";
+		    warn "--- Unexpectedly, the random file name exists ($newFn2)! Will try a new random name...";
 		}
-		exit;
-	    }
+	    } until ($fileRenamed);
 	}
+	# 2-Phase Rename - Phase 2: Rename files to from random file names
+        #                           to their final names.
 	foreach my $rnf (keys %rn3) {
 	    my $newFn = $rn3{$rnf};
 	    if (! exists $testRns{$newFn}) {
+		# Perform rename operation on psudeo dir.
 		$testRns{$newFn} = $testRns{$rnf};
 		delete $testRns{$rnf};
 		push (@finRn, $newFn);
@@ -353,9 +386,9 @@ if ($testOpt || (!$roOpt)) {
     if ($testOpt) {
 	&verbose(1,"*** Only Tested, no files have been renamed.\n");
 	if ($verbOpt == 2) {
-	    &verbose(2,"=== Final File List...\n");
+	    &verbose(2,"=== Bulk Renames will be Successful. Final File List...\n");
 	    foreach my $fn (sort @finRn) {
-		&verbose(2,"   $fn\n");
+		&verbose(2,"   $fn  =was=  $FinRn{$fn}\n");
 	    }
 	}
 	exit;
@@ -369,6 +402,7 @@ if ($testOpt || (!$roOpt)) {
 
 my (%rn2, %rn3);
 my @rnDone;
+my %FinRn;
 
 &verbose(1,"--- Performing Rename Operations...\n");
 
@@ -456,18 +490,36 @@ foreach my $fn (@procFiles) {
 	    }
 
 	    if (! -f $newFn) {
+		# File is not in the current dir or path.
 		rename ($fn, $newFn) || print "Failed to rename file ($fn -> $newFn)\n";
 		push (@rnDone, "$fn:$newFn");
 		&verbose(2,"Renamed $fn to $newFn\n");
+		if (exists $FinRn{$newFn}) {
+		    # Overwrites because multiple files are renamed to the same file name.
+		    die "\n*** Rename aborted because multiple files would be renamed to a the same name! ($newFn)\n";
+		} else {
+		    $FinRn{$newFn} = $fn;
+		}
 	    } else {
-		# Renaming this file requires 2 stages to eliminate file overwrites.
-		&verbose(2,"Renaming $fn to $newFn requires a 2-Phase Rename.\n");
-		$rn2{$fn} = $newFn;
+		# File exists in the current dir or path.
+		if (exists $FinRn{$newFn}) {
+		    # Overwrites because multiple files are renamed to the same file name.
+		    die "\n*** Rename aborted because multiple files would be renamed to a the same name! ($newFn)\n";
+		}
+		if (exists $origFn{$newFn}) {
+		    # Renaming this file requires 2 stages to eliminate file overwrites.
+		    &verbose(2,"Renaming $fn to $newFn requires a 2-Phase Rename.\n");
+		    $rn2{$fn} = $newFn;
+		} else {
+		    # If Clashing file name is not a file in our set of files, we have an over-write condition.
+		    print "\n*** Rename aborted because files outside of the renamed set would be lost! ($newFn)\n";
+		    &undoRenames();
+		    die;
+		}
 		if (($xVal < $n1) && ($xVal >$n2)) {
 		    print "\n*** Rename aborted because files outside of the renamed range would be lost! ($newFn)\n";
 		    &undoRenames();
-		    print "Rename Actions have been undone.\n";
-		    exit;
+		    die;
 		}
 	    }
 	}
@@ -482,7 +534,7 @@ if (keys %rn2) {
 	    if (!rename ($rnf, $newFn2)) {
 		print "*** Phase 1 Rename failed! ($rnf -> $newFn2)\n";
 		&undoRenames();
-		exit;
+		die;
 	    }
 	    push (@rnDone, "$rnf:$newFn2");
 	    &verbose(2,"Renamed $rnf to $newFn2\n");
@@ -490,7 +542,7 @@ if (keys %rn2) {
 	} else {
 	    print "\n*** Phase1 Existing file would be over-written lost! ($newFn2)\n";
 	    &undoRenames();
-	    exit;
+	    die;
 	}
     }
     foreach my $rnf (keys %rn3) {
@@ -499,14 +551,14 @@ if (keys %rn2) {
 	    if (!rename ($rnf, $newFn)) {
 		print "*** Phase 2 Rename failed! ($rnf -> $newFn)\n";
 		&undoRenames();
-		exit;
+		die;
 	    }
 	    push (@rnDone, "$rnf:$newFn");
 	    &verbose(2,"Renamed $rnf to $newFn\n");
 	} else {
 	    print "\n*** Phase2 Existing file would be over-written and lost! ($newFn)\n";
 	    &undoRenames();
-	    exit;
+	    die;
 	}
     }
 }
@@ -622,6 +674,18 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
      If n1 and n2 exist with a dash "-" between them "10-20" all values between
      and including n1 and n2 are changed to a new value.
 
+  The regexp file pattern must contain back-references for all portions of the
+  original file name that you want to preserve, including a back reference for
+  the portion that contains all numerics (that will be renumbered).
+
+  For example: bulkrn.pl -f '(mwlog\\.wfiejb)(\\d+)(\\..*)' -r 2:5:15 
+  Will change mwlog.wfiejb5.20100701 to mwlog.wfiejb5.20100701.
+
+  But,: bulkrn.pl -f 'mwlog\\.wfiejb(\\d+)(\\..*)' -r 1:5:15 
+  Will change mwlog.wfiejb5.20100701 to 5.20100701.
+  Because, the "mwlog\\.wfiejb" portion of the file name is not enclosed in
+  parens and will not be preserved
+   
   example: bulkrn.pl -f '(mwlog\\.wfiejb)(\\d+)(\\..*)' -r 2:5:15 
 
   Above, only n1 and nn are specified as options, all \$2 back-reference values
