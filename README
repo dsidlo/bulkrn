@@ -24,10 +24,16 @@ bulkrn.pl - ReNumber Files  Version (0.0.2)
   renumber some portion of the file name, for the set of files that match the -f
   file pattern.
 
-  usage: bulkrn.pl [-a|-h|-t|-v-|-x] -f [regexpWith2BackRefs] [-r [br:n1|n1-n2:nn[!]]]
-                   [-s [SequentialIncrement]] [-d [ZeroPaddedLength]]
+  usage: bulkrn.pl [SourceDir]
+                   [-a|-h|-t|-v-|-x] 
+                   -f [regexpWith2BackRefs] 
+                   [-r [br:n1|n1-n2:nn[!]]]
+                   [-s [SequentialIncrement]]
+                   [-d [ZeroPaddedLength]]
                    [-c [SubstitutionPattern]]
                    [-go]
+
+  If not specified [SourceDir] defaults to the current dir './'.
 
   Requires that the first argument, be defined as a pattern that matches to
   a set of file-names of interest, where the pattern returns upto
@@ -150,4 +156,4 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
   --help|-h
   Output this help text.
 
-  (See: "perldoc bulkrn.pl" for more details and examples of use.)
+  (See: "perldoc ./bulkrn.pl" for more details and examples of use.)

@@ -53,10 +53,20 @@ if ($runOpt) {
 
 my @fn; # File name back references.
 
+# print "=> ARGV0[$ARGV[0]]\n";
+my $srcDir = $ARGV[0];
+if (!$srcDir) {
+    $srcDir = './';
+}
+if (! -d $srcDir) {
+    die "The specified [SourceDir] does not exist! [$srcDir]";
+}
+
 # Just run a File Pattern Test...
 if ( ($fnPat ne '') && ($reNums == undef) && ($substOpt eq '') ) {
     print "Testing the FilePattern...\n";
-    opendir(my $DF, "./") || die "Could not opendir './'!\n";
+    chdir $srcDir || die "Faile to chdir to [SourceDir]! [$srcDir]\n";
+    opendir(my $DF, './') || die "Could not opendir [$srcDir]!\n";
     my @allfiles = readdir($DF);
     foreach my $fn (sort (grep m/${fnPat}/, @allfiles)) {
 	my $ln = $fn;
@@ -78,6 +88,11 @@ if ( ($fnPat ne '') && ($reNums == undef) && ($substOpt eq '') ) {
     close $DF;
     exit;
 }
+
+if ($fnPat eq '') {
+    die "You must specify the file name pattern option! [-filePat|-f] [FilePattern]\n";
+}
+
 
 my ($br, $n1, $n2, $nn);
 my $exclam = 0;
@@ -128,7 +143,8 @@ if ($substOpt) {
 
 my $nDiff = $nn - $n1;
 
-opendir(my $DF, "./") || die "Could not opendir './'!\n";
+chdir $srcDir || die "Faile to chdir to [SourceDir]! [$srcDir]\n";
+opendir(my $DF, './') || die "Could not opendir [$srcDir]!\n";
 my @allfiles = readdir($DF);
 
 # Test the Renumber/Rename Process ===============================================================================
@@ -151,7 +167,7 @@ if ($testOpt) {
 # Create a hash of the original matching file names.
 my %origFn;
 foreach my $fn (@procFiles) {
-    $origFn{$fn} = $fn;
+    $origFn{$srcDir.'/'.$fn} = $fn;
 }
 
 if ($#procFiles < 0) {
@@ -395,6 +411,7 @@ if ($testOpt || (!$roOpt)) {
     if ($testOpt) {
 	&verbose(1,"*** Only Tested, no files have been renamed.\n");
 	if ($verbOpt == 2) {
+	    &verbose(2,"=== Source Dir: [$srcDir]\n");
 	    &verbose(2,"=== Bulk Renames will be Successful. Final File List...\n");
 	    foreach my $fn (sort @finRn) {
 		&verbose(2,"   $fn  =was=  $FinRn{$fn}\n");
@@ -686,10 +703,16 @@ bulkrn.pl - ReNumber Files  Version ($VERSION)
   renumber some portion of the file name, for the set of files that match the -f
   file pattern.
 
-  usage: bulkrn.pl [-a|-h|-t|-v-|-x] -f [regexpWith2BackRefs] [-r [br:n1|n1-n2:nn[!]]]
-                   [-s [SequentialIncrement]] [-d [ZeroPaddedLength]]
+  usage: bulkrn.pl [SourceDir]
+                   [-a|-h|-t|-v-|-x] 
+                   -f [regexpWith2BackRefs] 
+                   [-r [br:n1|n1-n2:nn[!]]]
+                   [-s [SequentialIncrement]]
+                   [-d [ZeroPaddedLength]]
                    [-c [SubstitutionPattern]]
                    [-go]
+
+  If not specified [SourceDir] defaults to the current dir './'.
 
   Requires that the first argument, be defined as a pattern that matches to
   a set of file-names of interest, where the pattern returns upto
@@ -825,12 +848,15 @@ _EOF_
 
 =head1 SYNOPSIS
 
-  usage: bulkrn.pl [-h|-t|-v-|-x]
+  usage: bulkrn.pl [SourceDir]
+                   [-h|-t|-v-|-x]
                     -f [RegexpWithBackRefs]
                    [-r [br:n1|n1-n2:nn[!]]]
                    [-s [SequentialIncrement]]
                    [-d [ZeroPaddedLength]]
                    [-c [SubstitutionString]]
+
+  If not specified [SourceDir] defaults to the current dir './'.
 
   -filePat|-f [RegexpWithBackRefs]
   A regexp that matches to a file in the current directory and splits it into as
