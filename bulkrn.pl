@@ -4,18 +4,6 @@
 # Renumber files.
 #
 
-# Todo:
-# * Add ability to auto-create dirs and the new filename path.
-# * List the new dirs that autoDir creates.
-# * Added special handling for Windows|Dos FS inablility to distinguish between
-#   upper and lowercase characters in file names.
-#   * This may require more consisten handling across the code by
-#     creating actual routines for the test's pseudo fs rename.
-#     And a pseudo file test (-f) which does not distinguish between upper and
-#     lower for windows/dos.
-#     But, keep in mind that we still want to perform the rename under windows|dos
-#     because we may just want the change of case in the file name.
-
 use Getopt::Long;
 
 use strict;
@@ -78,7 +66,7 @@ if ( ($fnPat ne '') && ($reNums == undef) && ($substOpt eq '') ) {
 	    # print "==> $fn\n";
             print "FilePattern Test: $ln =br=> ";
 	    for (my $i=1; $i<=$#fn; $i++) {
-		if ($fn[$i]) {
+		if ($fn[$i] =~ /\d+/) {
 		    print "$i\($fn[$i]\) ";
 		}
 	    }
@@ -943,33 +931,34 @@ _EOF_
 
 =head2 Examples
 
+  List the files that match to mwlog in the current directory:
   ./bulkrn.pl -f 'mwlog'
-  List the files that match to mwlog in the current directory.
 
+  Changes the file names that match mwlog in the current directory to mxlog:
   ./bulkrn.pl -f 'mwlog' -c 's/mwlog/mxlog/' -go
-  Changes the file names that match mwlog in the current directory to mxlog.
 
-  ./bulkrn.pl -f 'mxlog\.wfiejb(\d+)(\.\d+)'
   List the files that match to mwlog in the current directory.
   See what portions of the file name are captured in upto 9 back reference
-  values.
+  values:
+  ./bulkrn.pl -f 'mxlog\.wfiejb(\d+)(\.\d+)'
 
-  ./bulkrn.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:300 -s 1 -go
   Renumber the value after wfiejb from 1-n to 300-n resequencing the value with
-  an increment of 1.
+  an increment of 1:
+  ./bulkrn.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:300 -s 1 -go
 
-  ./bulkrn.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:2 -s 2 -d 3 -c 's/mxlog/mwlog/' -go
   Renumber the value after wfiejb from 1-n to 2-n resequencing the value with an
   increment of 2, formatting the number with 3 digits and leading zeros, and
-  changing "mxlog" to "mwlog".
+  changing "mxlog" to "mwlog":
+  ./bulkrn.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' \
+              -r 2:1-:2 -s 2 -d 3 -c 's/mxlog/mwlog/' -go
 
-  ./bulkrn.pl -f '(mwlog.wfiejb).*' -c 's/($1)/\U$1\E/' -go
   Uppercase the text portion of the file name.
+  ./bulkrn.pl -f '(mwlog.wfiejb).*' -c 's/($1)/\U$1\E/' -go
 
-  Run a test to renumber the value after "wfiejb" from 30, resequencing the value in
-  incrments of 2; Placing the file into testdir/<date> where date comes from the 
-  file name; And strip the date from the file name when it is placed into its
-  destination directory.
+  Run a test to renumber the value after "wfiejb" from 1 to 30, resequencing the
+  value in incrments of 2; Placing the file into testdir/<date> where date comes
+  from the file name; And strip the date from the file name when it is placed
+  into its destination directory:
   ./bulkrn.pl -f '(mwlog.wfiejb)(\d+)(\.\d+)$' -r 2:1-:30 -s 2 -d 3 \
               -c 's:((.*)\.(\d+))$:testdir\/$3\/$2:' -a
 --- Testing Rename Operations...

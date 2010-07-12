@@ -5,6 +5,11 @@ rm -f ./mwlog.*
 rm -f ./mxlog.*
 rm -fr ./testdir
 
+if [ $1 == "clean" ]
+then
+  exit 1;
+fi
+
 ./makeFiles.sh
 
 echo '***** test 1 *****'
