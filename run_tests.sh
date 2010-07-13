@@ -1,7 +1,7 @@
 #!/bin/sh
 
 rm -f ./MWLOG.*
-rm -f ./mwlog.*
+rm -f ./applog.*
 rm -f ./mxlog.*
 rm -fr ./testdir
 rm -f lastTest.out
@@ -30,7 +30,7 @@ fi
 
 echo '***** test 1 *****'
 # File Pattern test.
-$prog -f 'mwlog' > lastTest.out
+$prog -f 'applog' > lastTest.out
 if [ $? -ne 0 ]
 then
     echo "+++ Failed: test 1"
@@ -39,8 +39,8 @@ then
 fi
 
 echo '***** test 2 *****'
-# Change mwlog to mxlog.
-$prog -f 'mwlog' -c 's/mwlog/mxlog/' -go > lastTest.out 2>&1
+# Change applog to mxlog.
+$prog -f 'applog' -c 's/applog/mxlog/' -go > lastTest.out 2>&1
 if [ $? -ne 0 ]
 then
     echo "+++ Failed: test 2"
@@ -50,7 +50,7 @@ fi
 
 echo '***** test 3 *****'
 # File Pattern test with Back-Refs.
-$prog -f 'mxlog\.wfiejb(\d+)(\.\d+)' > lastTest.out 2>&1
+$prog -f 'mxlog\.cluster(\d+)(\.\d+)' > lastTest.out 2>&1
 if [ $? -ne 0 ]
 then
     echo "+++ Failed: test 3"
@@ -59,8 +59,8 @@ then
 fi
 
 echo '***** test 4 *****'
-# Resequence wfiejb<value> from 1-n to 300-n, incrementing by 1.
-$prog -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:300 -s 1 -go > lastTest.out 2>&1
+# Resequence cluster<value> from 1-n to 300-n, incrementing by 1.
+$prog -f '(mxlog\.cluster)(\d+)(\.\d+)' -r 2:1-:300 -s 1 -go > lastTest.out 2>&1
 if [ $? -ne 0 ]
 then
     echo "+++ Failed: test 4"
@@ -69,8 +69,8 @@ then
 fi
 
 echo '***** test 5 *****'
-# Resequence wfiejb<value> from 1-n to 2-n, incrementing by 1, formating 3 digits zero padded.
-$prog -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:2 -s 2 -d 3 -c 's/mxlog/mwlog/' -go > lastTest.out 2>&1
+# Resequence cluster<value> from 1-n to 2-n, incrementing by 1, formating 3 digits zero padded.
+$prog -f '(mxlog\.cluster)(\d+)(\.\d+)' -r 2:1-:2 -s 2 -d 3 -c 's/mxlog/applog/' -go > lastTest.out 2>&1
 if [ $? -ne 0 ]
 then
     echo "+++ Failed: test 5"
@@ -79,8 +79,8 @@ then
 fi
 
 echo '***** test 6 *****'
-# Upper-case the (mwlog.wfiejb) portion of the file name.
-$prog -f '(mwlog.wfiejb).*' -c 's/($1)/\U$1\E/' -go > lastTest.out 2>&1
+# Upper-case the (applog.cluster) portion of the file name.
+$prog -f '(applog.cluster).*' -c 's/($1)/\U$1\E/' -go > lastTest.out 2>&1
 if [ $? -ne 0 ]
 then
     echo "+++ Failed: test 6"

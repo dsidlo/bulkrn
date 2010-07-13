@@ -717,18 +717,18 @@ bulkrn.pl - ReNumber Files  Version ($VERSION)
   that your file pattern is picking up the files that you expect to rename. And,
   you can the how the file name splits up into its back-references.
 
-\$ \./bulkrn.pl -f '(mwlog\\.wfiejb\\d+)(\\.\\d\\d\\d\\d)(08\\d\\d)' 
+\$ \./bulkrn.pl -f '(applog\\.cluster\\d+)(\\.\\d\\d\\d\\d)(08\\d\\d)' 
 Testing the FilePattern...
-FilePattern Test: mwlog.wfiejb1.20100810 => $1(mwlog.wfiejb1) $2(.2010) $3(0810)
-FilePattern Test: mwlog.wfiejb1.20100811 => $1(mwlog.wfiejb1) $2(.2010) $3(0811)
-FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
+FilePattern Test: applog.cluster1.20100810 => $1(applog.cluster1) $2(.2010) $3(0810)
+FilePattern Test: applog.cluster1.20100811 => $1(applog.cluster1) $2(.2010) $3(0811)
+FilePattern Test: applog.cluster1.20100812 => $1(applog.cluster1) $2(.2010) $3(0812)
 ...
 
  The file name pattern...
 
   -filePat|-f [filePattern RegExpp]
 
-  '(mwlog\\.wfiejb)(\\d+)(\\..*)'
+  '(applog\\.cluster)(\\d+)(\\..*)'
     ^------------  ^--- ^--- 
     |              |    |
     |              |    +---: BackRef \$3 -> \$fn1
@@ -762,7 +762,7 @@ FilePattern Test: mwlog.wfiejb1.20100812 => $1(mwlog.wfiejb1) $2(.2010) $3(0812)
   Format the new numberic value with leading zeros to a length of n.
   example: -d 5
 
-  --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
+  --change|-c [SubstitutionPattern] (-c 's/applog/mxx/i')
   A substitution pattern that changes some portion of the filename if found.
   The back-references \$1..\$9 may be used in the "matching" portion of the
   string substitution equation to refer to the back-refs in the original
@@ -856,25 +856,25 @@ _EOF_
   original file name that you want to preserve, including a back reference for
   the portion that contains all numerics (that will be renumbered).
 
-  For example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5:15 
-  Will change mwlog.wfiejb5.20100701 to mwlog.wfiejb5.20100701.
+  For example: bulkrn.pl -f '(applog\.cluster)(\d+)(\..*)' -r 2:5:15 
+  Will change applog.cluster5.20100701 to applog.cluster5.20100701.
 
-  But,: bulkrn.pl -f 'mwlog\.wfiejb(\d+)(\..*)' -r 1:5:15 
-  Will change mwlog.wfiejb5.20100701 to 5.20100701.
-  Because, the "mwlog\.wfiejb" portion of the file name is not enclosed in
+  But,: bulkrn.pl -f 'applog\.cluster(\d+)(\..*)' -r 1:5:15 
+  Will change applog.cluster5.20100701 to 5.20100701.
+  Because, the "applog\.cluster" portion of the file name is not enclosed in
   parens and will not be preserved.
    
-  example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5:15 
+  example: bulkrn.pl -f '(applog\.cluster)(\d+)(\..*)' -r 2:5:15 
 
   Above, only n1 and nn are specified as options, all \$2 back-reference values
   that match 5 will be incrmented by 10 (nn-n1).
 
-  example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5-:15 
+  example: bulkrn.pl -f '(applog\.cluster)(\d+)(\..*)' -r 2:5-:15 
 
   Above, only n1 and nn are specified as options, all \$2 back-reference values
   that match 5 and above will be incrmented by 10 (nn-n1).
 
-  example: bulkrn.pl -f '(mwlog\.wfiejb)(\d+)(\..*)' -r 2:5-7:15
+  example: bulkrn.pl -f '(applog\.cluster)(\d+)(\..*)' -r 2:5-7:15
 
   Above, n1-n2 and nn are specified as options, only \$2 back-reference values
   that match 5 thru 7 are incrmented by 10. 
@@ -892,7 +892,7 @@ _EOF_
   Print details of the renaming process.
   There are 3 levels of verbosity "-v", "-v -v" and "-v -v -v"
 
-=head2 [--change | -c] [SubstitutionPattern] (-c 's/mwlog/mxx/i')
+=head2 [--change | -c] [SubstitutionPattern] (-c 's/applog/mxx/i')
 
   A substitution pattern that changes some portion of the filename if found.
   The back-references \$1..\$9 may be used in the "matching" portion of the
@@ -960,44 +960,44 @@ _EOF_
 
 =head2 Examples
 
-  List the files that match to mwlog in the current directory:
-  ./bulkrn.pl -f 'mwlog'
+  List the files that match to applog in the current directory:
+  ./bulkrn.pl -f 'applog'
 
-  Changes the file names that match mwlog in the current directory to mxlog:
-  ./bulkrn.pl -f 'mwlog' -c 's/mwlog/mxlog/' -go
+  Changes the file names that match applog in the current directory to mxlog:
+  ./bulkrn.pl -f 'applog' -c 's/applog/mxlog/' -go
 
-  List the files that match to mwlog in the current directory.
+  List the files that match to applog in the current directory.
   See what portions of the file name are captured in upto 9 back reference
   values:
-  ./bulkrn.pl -f 'mxlog\.wfiejb(\d+)(\.\d+)'
+  ./bulkrn.pl -f 'mxlog\.cluster(\d+)(\.\d+)'
 
-  Renumber the value after wfiejb from 1-n to 300-n resequencing the value with
+  Renumber the value after cluster from 1-n to 300-n resequencing the value with
   an increment of 1:
-  ./bulkrn.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' -r 2:1-:300 -s 1 -go
+  ./bulkrn.pl -f '(mxlog\.cluster)(\d+)(\.\d+)' -r 2:1-:300 -s 1 -go
 
-  Renumber the value after wfiejb from 1-n to 2-n resequencing the value with an
+  Renumber the value after cluster from 1-n to 2-n resequencing the value with an
   increment of 2, formatting the number with 3 digits and leading zeros, and
-  changing "mxlog" to "mwlog":
-  ./bulkrn.pl -f '(mxlog\.wfiejb)(\d+)(\.\d+)' \
-              -r 2:1-:2 -s 2 -d 3 -c 's/mxlog/mwlog/' -go
+  changing "mxlog" to "applog":
+  ./bulkrn.pl -f '(mxlog\.cluster)(\d+)(\.\d+)' \
+              -r 2:1-:2 -s 2 -d 3 -c 's/mxlog/applog/' -go
 
   Uppercase the text portion of the file name.
-  ./bulkrn.pl -f '(mwlog.wfiejb).*' -c 's/($1)/\U$1\E/' -go
+  ./bulkrn.pl -f '(applog.cluster).*' -c 's/($1)/\U$1\E/' -go
 
-  Run a test to renumber the value after "wfiejb" from 1 to 30, resequencing the
+  Run a test to renumber the value after "cluster" from 1 to 30, resequencing the
   value in incrments of 2; Placing the file into testdir/<date> where date comes
   from the file name; And strip the date from the file name when it is placed
   into its destination directory:
-  ./bulkrn.pl -f '(mwlog.wfiejb)(\d+)(\.\d+)$' -r 2:1-:30 -s 2 -d 3 \
+  ./bulkrn.pl -f '(applog.cluster)(\d+)(\.\d+)$' -r 2:1-:30 -s 2 -d 3 \
               -c 's:((.*)\.(\d+))$:testdir\/$3\/$2:' -a
 --- Testing Rename Operations...
 *** Only Tested, no files have been renamed.
 === Bulk Renames will be Successful. Final File List...
-   testdir/20100701/mwlog.wfiejb030  =was=  mwlog.wfiejb1.20100701
-   testdir/20100701/mwlog.wfiejb032  =was=  mwlog.wfiejb2.20100701
-   testdir/20100701/mwlog.wfiejb034  =was=  mwlog.wfiejb3.20100701
-   testdir/20100701/mwlog.wfiejb036  =was=  mwlog.wfiejb4.20100701
-   testdir/20100701/mwlog.wfiejb038  =was=  mwlog.wfiejb5.20100701
+   testdir/20100701/applog.cluster030  =was=  applog.cluster1.20100701
+   testdir/20100701/applog.cluster032  =was=  applog.cluster2.20100701
+   testdir/20100701/applog.cluster034  =was=  applog.cluster3.20100701
+   testdir/20100701/applog.cluster036  =was=  applog.cluster4.20100701
+   testdir/20100701/applog.cluster038  =was=  applog.cluster5.20100701
 
 =head2 References
 

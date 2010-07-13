@@ -50,18 +50,18 @@ bulkrn.pl - ReNumber Files  Version (0.0.2)
   that your file pattern is picking up the files that you expect to rename. And,
   you can the how the file name splits up into its back-references.
 
-$ ./bulkrn.pl -f '(mwlog\.wfiejb\d+)(\.\d\d\d\d)(08\d\d)' 
+$ ./bulkrn.pl -f '(applog\.cluster\d+)(\.\d\d\d\d)(08\d\d)' 
 Testing the FilePattern...
-FilePattern Test: mwlog.wfiejb1.20100810 => (mwlog.wfiejb1) (.2010) (0810)
-FilePattern Test: mwlog.wfiejb1.20100811 => (mwlog.wfiejb1) (.2010) (0811)
-FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
+FilePattern Test: applog.cluster1.20100810 => (applog.cluster1) (.2010) (0810)
+FilePattern Test: applog.cluster1.20100811 => (applog.cluster1) (.2010) (0811)
+FilePattern Test: applog.cluster1.20100812 => (applog.cluster1) (.2010) (0812)
 ...
 
  The file name pattern...
 
   -filePat|-f [filePattern RegExpp]
 
-  '(mwlog\.wfiejb)(\d+)(\..*)'
+  '(applog\.cluster)(\d+)(\..*)'
     ^------------  ^--- ^--- 
     |              |    |
     |              |    +---: BackRef $3 -> $fn1
@@ -95,7 +95,7 @@ FilePattern Test: mwlog.wfiejb1.20100812 => (mwlog.wfiejb1) (.2010) (0812)
   Format the new numberic value with leading zeros to a length of n.
   example: -d 5
 
-  --change|-c [SubstitutionPattern] (-c 's/mwlog/mxx/i')
+  --change|-c [SubstitutionPattern] (-c 's/applog/mxx/i')
   A substitution pattern that changes some portion of the filename if found.
   The back-references $1..$9 may be used in the "matching" portion of the
   string substitution equation to refer to the back-refs in the original
