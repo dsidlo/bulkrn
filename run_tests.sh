@@ -26,6 +26,7 @@ else
     fi
 fi
 
+echo "***** makefiles.sh *****"
 ./makeFiles.sh
 
 echo '***** test 1 *****'
@@ -119,7 +120,7 @@ then
 fi
 
 echo '***** test 10 *****'
-# Resquence files to existing file names. (We Expect a Failure Result).
+# Resquence files to exiting file names. (We Expect a Failure Result).
 $prog -f '(APPLOG.CLUSTER)(\d+)(\.\d\d\d\d)(.*)(\d\d\d\d)' -r 2:1-8:20 -s 1 -d 3 -go > lastTest.out 2>&1
 if [ $? -eq 0 ]
 then
@@ -141,10 +142,26 @@ fi
 echo '***** test 12 *****'
 # Moves files into a sub dirs "testdirs/<date>" based on date from the file name.
 # Strip the date and "BunnyKisses" from the file name.
-$prog -f 'APPLOG.CLUSTER\d+\.(\d+)\.(\D+)\.(\d+)$' -c 's:((.*)\.(\d+)\.(\D+)\.(\d+))$:testdir\/$3$5\/$2:' -a -go > lastTest.out 2>&1
+$prog -f 'APPLOG.CLUSTER\d+\.(\d+)\.(\D+)\.(\d+)$' -c 's:((.*)\.(\d+)\.(\D+)\.(\d+))$:testdir\/$3$5\/$2:' -a -go > lastTest.out -v -v -v 2>&1
 if [ $? -ne 0 ]
 then
     echo "+++ Failed: test 12."
+    cat lastTest.out
+    exit 1;
+fi
+
+rm -fr testdir/20100701
+rm -fr testdir/20100702
+rm -fr testdir/20100703
+
+echo '***** test 13 *****'
+# Moves files into a sub dirs "testdirs/<date>" based on date from the file name.
+# Strip the date and "BunnyKisses" from the file name.
+# Only this time, we have some dirs and files in the way.
+$prog -f 'APPLOG.CLUSTER\d+\.(\d+)\.(\D+)\.(\d+)$' -c 's:((.*)\.(\d+)\.(\D+)\.(\d+))$:testdir\/$3$5\/$2:' -a -go > lastTest.out -v -v -v 2>&1
+if [ $? -eq 0 ]
+then
+    echo "+++ Failed: test 13. (We Expect this test to fail)"
     cat lastTest.out
     exit 1;
 fi
