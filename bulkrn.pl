@@ -4,11 +4,24 @@
 # Renumber files.
 #
 
+# Other Possibilities:
+# - Session Level Undo.
+#   - Save Undo info into ~/.bulkrn
+#   - bulkrn -undo
+#     Will display what will be undone.
+#   - bulkrn -undo -go
+#     Will perform the real undo, but will back out if it can't be completely undone.
+#   - bulkrn -undo -go --force
+#     Will perform and force through as much as it can of the real undo.
+#
+
 use Getopt::Long;
 
 use strict;
 
 my $VERSION = "0.0.2";
+
+my $mkdirStr = '.~=#[mkdir]@+-.';
 
 my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt, $roOpt, $substOpt, $runOpt, $dirOpt);
 
@@ -66,7 +79,7 @@ if ( ($fnPat ne '') && ($reNums == undef) && ($substOpt eq '') ) {
 	    # print "==> $fn\n";
             print "FilePattern Test: $ln =br=> ";
 	    for (my $i=1; $i<=$#fn; $i++) {
-		if ($fn[$i] =~ /\d+/) {
+		if ($fn[$i] ne '') {
 		    print "$i\($fn[$i]\) ";
 		}
 	    }
@@ -155,7 +168,7 @@ if ($testOpt) {
 # Create a hash of the original matching file names.
 my %origFn;
 foreach my $fn (@procFiles) {
-    $origFn{$srcDir.'/'.$fn} = $fn;
+    $origFn{$fn} = $fn;
 }
 
 if ($#procFiles < 0) {
@@ -209,7 +222,7 @@ if ($reNums && $seqOpt) {
 }
 
 
-if ($testOpt || (!$roOpt)) {
+if ($testOpt && (!$roOpt)) {
     
     &verbose(1,"--- Testing Rename Operations...\n");
 
@@ -313,15 +326,15 @@ if ($testOpt || (!$roOpt)) {
 		    if ($chkd && ($dirOpt eq '')) {
 			print "Test: *** New directory(ies) ($newFn) would have to be created, perhaps you should use the -autoDir option!\n";
 		    }
-		    # Perform rename operation on psudeo dir.
-		    $testRns{$newFn} = $testRns{$fn};
-		    undef $testRns{$fn};
-		    push (@finRn, $newFn);
 		    if (exists $FinRn{$newFn}) {
 			# Overwrites because multiple files are renamed to the same file name.
-			print "\nTest: *** Rename would be aborted because multiple files would be renamed to a the same name! ($newFn)\n";
+			print "\nTest: *** 1) Rename would be aborted because multiple files would be renamed to a the same name! ($newFn)\n";
 			die;
 		    } else {
+			# Perform rename operation on psudeo dir.
+			$testRns{$newFn} = $testRns{$fn};
+			undef $testRns{$fn};
+			push (@finRn, $newFn);
 			$FinRn{$newFn} = $fn;
 		    }
 		    &verbose(3,"Test: Renamed $fn to $newFn\n");
@@ -329,7 +342,7 @@ if ($testOpt || (!$roOpt)) {
 		    # The new file name already exists in the current dir.
 		    if (exists $FinRn{$newFn}) {
 			# Overwrites because multiple files are renamed to the same file name.
-			print "\nTest: *** Rename would be aborted because multiple files would be renamed to a the same name! ($newFn)\n";
+			print "\nTest: *** 2) Rename would be aborted because multiple files would be renamed to a the same name! ($newFn)\n";
 			die;
 		    }
 		    if (exists $origFn{$newFn}) {
@@ -362,11 +375,12 @@ if ($testOpt || (!$roOpt)) {
 	    do {
 		my $newFn2 = $rnf."_".time()."_".rand(time());
 		if (! exists $testRns{$newFn2}) {
-		    # Perform rename operation on psudeo dir.
+		    # Perform rename operation in psudeo dir.
 		    $testRns{$newFn2} = $testRns{$rnf};
 		    delete $testRns{$rnf};
 		    &verbose(3,"Test: Renamed $rnf to $newFn2\n");
 		    $rn3{$newFn2} = $rn2{$rnf};
+		    $fileRenamed = 1;
 		} else {
 		    warn "--- Unexpectedly, the random file name exists ($newFn2)! Will try a new random name...";
 		}
@@ -377,7 +391,7 @@ if ($testOpt || (!$roOpt)) {
 	foreach my $rnf (keys %rn3) {
 	    my $newFn = $rn3{$rnf};
 	    if (! exists $testRns{$newFn}) {
-		# Perform rename operation on psudeo dir.
+		# Perform rename operation in psudeo dir.
 		$testRns{$newFn} = $testRns{$rnf};
 		delete $testRns{$rnf};
 		push (@finRn, $newFn);
@@ -514,24 +528,28 @@ foreach my $fn (@procFiles) {
 		if ($chkd && ($dirOpt eq '')) {
 		    print "Test: *** New directory(ies) ($newFn) would have to be created, perhaps you should use the -autoDir option!\n";
 		}
-		# File is not in the current dir or path.
-		rename ($fn, $newFn) || print "Failed to rename file ($fn -> $newFn)\n";
-		push (@rnDone, "$fn:$newFn");
-		&verbose(2,"Renamed $fn to $newFn\n");
 		if (exists $FinRn{$newFn}) {
 		    # Overwrites because multiple files are renamed to the same file name.
-		    die "\n*** Rename aborted because multiple files would be renamed to a the same name! ($newFn)\n";
+		    print "\n*** 1) Rename aborted because multiple files would be renamed to a the same name! ($newFn)\n";
+		    &undoRenames();
+		    die;
 		} else {
+		    # File is not in the current dir or path.
+		    rename ($fn, $newFn) || print "Failed to rename file ($fn -> $newFn)\n";
+		    push (@rnDone, "$fn:$newFn");
+		    &verbose(2,"Renamed $fn to $newFn\n");
 		    $FinRn{$newFn} = $fn;
 		}
 	    } else {
 		# File exists in the current dir or path.
 		if (exists $FinRn{$newFn}) {
 		    # Overwrites because multiple files are renamed to the same file name.
-		    die "\n*** Rename aborted because multiple files would be renamed to a the same name! ($newFn)\n";
+		    print "\n*** 2) Rename aborted because multiple files would be renamed to a the same name! ($newFn)\n";
+		    &undoRenames();
+		    die;
 		}
 		# print "==> [$newFn] origFn[".join(", ",(keys %origFn))."]\n";
-		if (exists $origFn{$newFn}) {
+		if (-f $newFn) {
 		    # Renaming this file requires 2 stages to eliminate file overwrites.
 		    &verbose(2,"Renaming $fn to $newFn requires a 2-Phase Rename.\n");
 		    $rn2{$fn} = $newFn;
@@ -604,13 +622,29 @@ if (keys %rn2) {
 
 sub undoRenames {
     for (my $i=$#rnDone; $i>=0; $i--) {
-	my ($on, $nn) = split(':', $rnDone[$i]);
-	if (! -f $on) {
+	$rnDone[$i] =~ m/([^\:]+)\:(.*)$/;
+	my ($on, $nn) = ($1, $2);
+	if ($on eq $mkdirStr) {
+	    # Undo Created Dir (If Empty)
+	    my $dir = $nn;
+	    # regular files...
+	    push (my @files, glob $dir."*");
+	    # + hidden files...
+	    push (   @files, glob $dir.".*");
+	    # less . (currentDir) and .. (priorDir)
+	    @files = grep $_ !~ /\.{1,2}$/, @files;
+	    if ($#files < 0) {
+		rmdir $dir || die "*** Undo unlink dir failed! ($dir)\n";
+		&verbose(1,"Created Dir [$dir] was empty and was removed.\n");
+	    } else {
+		print "*** Failed to undo dir creation! Dir was not empty! ($dir)\n";
+	    }
+	} elsif (! -f $on) {
 	    rename ($nn, $on) || die "Undo Rename failed! ($nn -> $on)\n";
 	    &verbose(1,"Rename was undone [$nn back-to $on].\n");
 	} else {
 	    # This should not occur.
-	    die "Undo Rename Failed, Existing file would be over-written and lost! ($on)";
+	    die "*** Undo Rename Failed, Existing file would be over-written and lost! ($on)";
 	}
     }
     print "Rename Actions have been undone.\n";
@@ -634,6 +668,10 @@ sub checkDirs () {
 	}
 	$dp .= $dirs[$i].'/';
 	if ($tst) {
+	    if (-d $dp) {
+		# If the directory exists, push the dirs files
+		# into 
+	    }
 	    if (!exists $nd->{$dp}) {
 		$nd->{$dp} = 1;
 		$madeNewDir = 1;
@@ -642,6 +680,7 @@ sub checkDirs () {
 	    if (! -d $dp) {
 		mkdir $dp || die "Failed to create directory ($dp) for ($newFn)!\n";
 		$nd->{$dp} = 1;
+		push(@rnDone, $mkdirStr.':'.$dp);
 		$madeNewDir = 1;
 	    }
 	} elsif (!$testOpt) {
@@ -909,9 +948,9 @@ _EOF_
   performed. This default pre-test can be disabled by the [--run-only | -x]
   option. This is especially useful when using this program within a script.
 
-=head1 AUTHOR - David Sidlo
+=head1 AUTHOR - LuxUltraExterior
 
-    dsidlo@gmail.com
+    LuxUltraExterior@gmail.com
 
 =head1 APPENDIX
 
