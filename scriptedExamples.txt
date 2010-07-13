@@ -1,0 +1,47 @@
+This is scripted examples of using bulkrn.
+
+# Create some files...
+./makeFiles.sh 
+ls
+
+# Create a sub dir...
+mkdir applogs
+ls
+
+# Move our files into the sub dir...
+mv applog* applogs
+ls
+
+# Test referencing the files...
+# - Won't work.
+bulkrn applogs -f '(applog\.cluster\.)(\d+)(\.\d+)'
+# - Works...
+bulkrn applogs -f '(applog\.cluster)(\d+)(\.\d+)'
+
+# Renumber test...
+bulkrn applogs -f '(applog\.cluster)(\d+)(\.\d+)' -r 2:10-:100
+# Renumber go...
+bulkrn applogs -f '(applog\.cluster)(\d+)(\.\d+)' -r 2:10-:100 -go
+# Check on the changed made...
+bulkrn applogs -f '(applog\.cluster)(\d+)(\.\d+)'
+
+# Renumber 1-n to 500-n with a sequence increment of 5-n                                                             bulkrn applogs -f '(applog\.cluster)(\d+)(\.\d+)' -r 2:1-:500 -s 5 -d 4 -go
+bulkrn applogs -f '(applog\.cluster)(\d+)(\.\d+)'
+
+# Move files into a directory and convert date and file name to a directory
+# Opps! Not ready yet. (Will roll-back changes)
+bulkrn applogs -f '(applog\.cluster)(\d+)(\.\d+)' -c 's/(\D+\.\D+\d+)/\.\.testdir' -go
+# Looks good!
+bulkrn applogs -f '(applog\.cluster)(\d+)(\.\d+)' -c 's:(\D+\.\D+\d+)\.(\d+)$:\.\.\/testdir\/$2\/$1:'
+# Go, But needs -a option...
+bulkrn applogs -f '(applog\.cluster)(\d+)(\.\d+)' -c 's:(\D+\.\D+\d+)\.(\d+)$:\.\.\/testdir\/$2\/$1:' -go
+# Go, and it works.
+bulkrn applogs -f '(applog\.cluster)(\d+)(\.\d+)' -c 's:(\D+\.\D+\d+)\.(\d+)$:\.\.\/testdir\/$2\/$1:' -go 2  ls -al
+# No more files in applogs...
+ls -R applogs/
+# Files are not in dirs by date in testdir...
+ls -R testdir/
+
+# Remove test dirs...
+rm -fr testdir/
+rm -fr applogs/
