@@ -4,6 +4,12 @@
 # Renumber files.
 #
 
+# Done:
+# * Handled some incorrect file tests in the Operating-Run code.
+# * Undo should deleted dirs created, if empty.
+# * Found another code bug re: Renaming to same file (missing undo).
+# * Found bug in FilePattern Test (Needs to show non-blank back-refs).
+
 # Other Possibilities:
 # - Session Level Undo.
 #   - Save Undo info into ~/.bulkrn
