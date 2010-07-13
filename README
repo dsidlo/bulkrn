@@ -2,6 +2,7 @@
 bulkrn.pl - ReNumber Files  Version (0.0.2)
 
   A general purpose file name and file path transformation utility.
+  Works on unix and cygwin and with ActiveState-Perl.
 
   Safely renumbers (numeric portions of a file(s) name) and/or renames files
   in the current directory. Watches for filename overlap/overwrite conditions

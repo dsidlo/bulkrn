@@ -669,6 +669,7 @@ sub helpMe {
 bulkrn.pl - ReNumber Files  Version ($VERSION)
 
   A general purpose file name and file path transformation utility.
+  Works on unix and cygwin and with ActiveState-Perl.
 
   Safely renumbers (numeric portions of a file(s) name) and/or renames files
   in the current directory. Watches for filename overlap/overwrite conditions
@@ -808,6 +809,8 @@ _EOF_
      unless the -go option is added to the command line.
   5. If an overwrite condition or error occurs during the file rename process
      all actions performed thus far are rolled back.
+
+  Works on unix and cygwin and with ActiveState-Perl.
 
 =head1 SYNOPSIS
 
