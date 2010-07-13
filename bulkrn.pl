@@ -615,7 +615,7 @@ bulkrn.pl - ReNumber Files  Version ($VERSION)
   that your file pattern is picking up the files that you expect to rename. And,
   you can the how the file name splits up into its back-references.
 
-\$ \./bulkrn.pl -f '(mwlog\\.wfiejb\\d+)(\\.\\d\\d\\d\\d)(08\\d\\d)' 
+\$ \.\/bulkrn.pl -f '(mwlog\\.wfiejb\\d+)(\\.\\d\\d\\d\\d)(08\\d\\d)' 
 Testing the FilePattern...
 FilePattern Test: mwlog.wfiejb1.20100810 => $1(mwlog.wfiejb1) $2(.2010) $3(0810)
 FilePattern Test: mwlog.wfiejb1.20100811 => $1(mwlog.wfiejb1) $2(.2010) $3(0811)
@@ -755,7 +755,7 @@ _EOF_
      n1-: Change all values from n1 and greater.
    n1-n2: Change all values from n1 to n2.
       nn: Change n1 to this new value (nn).
-     nn!: Don't increment nn relative to n1-n2. nn stays static.
+     nn!: Don\'t increment nn relative to n1-n2. nn stays static.
 
   --test|-t 
   Perform a test only.
