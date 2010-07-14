@@ -9,6 +9,7 @@
 # * Undo should deleted dirs created, if empty.
 # * Found another code bug re: Renaming to same file (missing undo).
 # * Found bug in FilePattern Test (Needs to show non-blank back-refs).
+# * Fix prob using / in -c subst with a dir in path.
 
 # Other Possibilities:
 # - Session Level Undo.
@@ -27,9 +28,13 @@ use strict;
 
 my $VERSION = "0.0.2";
 
+my $sessionUndos  = 10;
 my $mkdirStr = '.~=#[mkdir]@+-.';
+my $bulkrnDir = $ENV{HOME}.'/.bulkrn';
 
-my ($fnPat, $reNums, $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt, $roOpt, $substOpt, $runOpt, $dirOpt);
+
+my ($fnPat, $reNums,   $seqOpt, $helpOpt, $testOpt, $verbOpt, $fmtOpt);
+my ($roOpt, $substOpt, $runOpt, $dirOpt,  $undoOpt, $doUndo);
 
 # By Default we always only test.
 $testOpt = 1;
@@ -44,8 +49,14 @@ my $retGetOpts = GetOptions ( "filePat|f=s"    => \$fnPat,    # The file name re
 			      "verbose|v+"     => \$verbOpt,  # Verbose Output
 			      "run-only|x"     => \$roOpt,    # Run Only. No test before running 
 			      "autoDir|a"      => \$dirOpt,   # Auto create missing dirs.
+			      "noUndo|n"       => \$undoOpt,  # Disable Session Undo.
+			      "undo"           => \$doUndo,   # Perform the session undo.
     );
 
+# If the noUndo option is set, we don't want to save the session undo file.
+$undoOpt = !$undoOpt;
+
+# print "==> undoOpt[$undoOpt]\n";
 # print "=> (\$fnPat\:$fnPat, \$reNums\:$reNums, \$seqOpt\:$seqOpt, \$helpOpt\:$helpOpt,"
 #      ." \$testOpt\:$testOpt, \$verbOpt\:$verbOpt, \$fmtOpt\:$fmtOpt, \$roOpt\:$roOpt)\n";
 
@@ -96,6 +107,11 @@ if ( ($fnPat ne '') && ($reNums == undef) && ($substOpt eq '') ) {
     exit;
 }
 
+if ($doUndo) {
+    &undoLastSession();
+    exit;
+}
+
 if ($fnPat eq '') {
     die "You must specify the file name pattern option! [-filePat|-f] [FilePattern]\n";
 }
@@ -135,16 +151,19 @@ if ($reNums ne '') {
 
 my ($ss, $s1, $s2, $s3);
 if ($substOpt) {
-    if ($substOpt =~ m/^s([\:\/\~\|])/i) {
+    if ($substOpt =~ m/^s([\:\/\~\|\=\+\~\|\_\?])/i) {
 	$ss = $1;
-	(undef, $s1, $s2, $s3) = split ($ss, $substOpt);
+	(undef, $s1, $s2, $s3) = split (/(?<!\\)$ss/, $substOpt);
 	if (($s1 eq '') || ($s2 eq '')) {
 	    # Error Condition in substituion string.
-	    die "Could not parse --change|-c option [$substOpt]!";
+	    die "Could not parse --change|-c option [$substOpt]!\n";
 	}
     } else {
 	# Error Condition in substituion string.
-	die "Could not parse --change|-c option [$substOpt]!";
+	print "Could not parse --change|-c option [$substOpt]!\n";
+	print "[SubstOpt] Must be a regexp substitution operation such as s/<Str>/<Subst>/.\n";
+	print "           The Separation char may be any one of [\:\/\~\|\=\+\~\|\_\?].\n";
+	die;
     }
 }
 
@@ -624,33 +643,151 @@ if (keys %rn2) {
     }
 }
 
+# If we make it this far, renames completed successfully.
+# Now save out undos to a file "Session Undos".
+if ($undoOpt) {
+    &verbose(1,"=== Saving session undo file.\n");
+    
+    if (! -d "$bulkrnDir") {
+	&verbose(0,"--- Created bulkrnDir [$bulkrnDir].\n");
+	mkdir "$bulkrnDir" || warn "*** Could not create $bulkrnDir directory!\n";
+    }
+    if (-d "$bulkrnDir") {
+	# Save the undo array to a file.
+	# - Read undo files in the dir.
+	my @undoFiles = (sort glob "$bulkrnDir/undo_*");
+	my ($lastFile, $undoDir, $lastNum);
+	if (@undoFiles) {
+	    &verbose(0,"--- Found [@".@undoFiles."|\$\#".$#undoFiles."] undo files found in [$bulkrnDir].\n");
+	    $lastFile = $undoFiles[$#undoFiles];
+	    if ($lastFile =~ /^(.*)\/(undo_)(\d+)$/) {
+		($undoDir, $lastNum) = ($1, $3);
+		$lastNum++;
+	    } else {
+		warn "*** Failed to parse Session Undo file name [$lastFile]!";
+	    }
+	} else {
+	    &verbose(0,"--- No undo files found in [$bulkrnDir].\n");
+	    $lastNum = 1;
+	    $undoDir = $bulkrnDir;
+	}
+	# - Create next file name.
+	my $nextFile = $undoDir.'/undo_'.sprintf "%05d",$lastNum;
+	# - Dump data into file.
+	&verbose(0,"--- Creating a new undo file. [$nextFile]\n");
+	if (open(my $UF, "> $nextFile")) {
+	    #   - Make sure file begins with SourceDir.
+	    my $dt = `date`; chop $dt;
+	    printf $UF "UndoSession: $dt\n";
+	    printf $UF "SourceDir: $srcDir\n";
+	    printf $UF join("\n",@rnDone)."\n";
+	    close $UF;
+	} else {
+	    warn "*** Failed to create a new session undo file! [$nextFile]\n";
+	}
+	
+	# - Make sure that there are only n undo session files
+	#   - Too many, delete older ones, renumber.
+	my $filesUnlinked = 0;
+	if (($#undoFiles+1) >= $sessionUndos) {
+	    &verbose(0,"--- Deleting some session undo files.\n");
+	    for (my $i=0; $i<=($#undoFiles - ($sessionUndos - 1)); $i++) {
+		unlink($undoFiles[$i]) || warn "Failed to remove bulkrn undo session file ($undoFiles[$i])!\n";
+		$filesUnlinked ++;
+	    }
+	    &verbose(0,"Unlinked [$filesUnlinked] files.");
+	}
+	if ($filesUnlinked) {
+	    # Renumber session files.
+	    &verbose(0,"--- Re-Sequencing session undo files.\n");
+	    my $retStr = `$0 $bulkrnDir -f '(undo_)(\\d+)' -r 2:1-:1 -s 1 -d 5 -noUndo -go`;
+	    if ($retStr) {
+		warn "*** Failed to resequence undo session files!\n";
+		print "$retStr";
+	    }
+	}
+
+    } else {
+	warn "*** $bulkrnDir directory does not exist! Session Undo file was not saved!\n";
+    }
+}
+
 &verbose(1,"*** Rename Operations Completed.\n");
+
+sub undoLastSession {
+    &verbose(0, "*** Undoing the last bulkrn Session Completed on ()!\n");
+
+    # Read undo file.
+    my @undoFiles = (sort glob "$bulkrnDir/undo_*");
+    my $lastFile = $undoFiles[$#undoFiles];
+
+    if ($lastFile eq '') {
+	die "*** There are No more bulkrn Session Files available!\n";
+    }
+
+    my @undoOps;
+    if (open(my $UF, "< $lastFile")) {
+	@undoOps = <$UF>;
+	@undoOps = grep s/\n//g, @undoOps;
+    }
+    my $undoSess = shift @undoOps;
+    my $srcDir   = shift @undoOps;
+    if (    ($undoSess !~ /UndoSession: /)
+	 || ($srcDir   !~ /SourceDir: /  ) ) {
+	die "Failed to recognize This bulkrn Undo Session File! [$lastFile]";
+    }
+    &verbose(0,"$undoSess\n");
+    $srcDir =~ s/SourceDir: //;
+    &verbose(0,"chdir [$srcDir]\n");
+    # ChDir to SourceDir.
+    chdir $srcDir || die "Undo Session failed to chdir to [$srcDir]!\n";
+
+    # Execute Undos.
+    # - Failure (Log it and Continue)
+    # Delete Undo Session File.
+    # --undo (test and see undo final results)
+    # --undo -go Do the operations on the fs.
+    @rnDone = @undoOps;
+    &undoRenames();
+    if (!$testOpt) {
+	unlink ($lastFile) || die "*** Failed to removed bulkrn Undo Session File! [$lastFile]\n";
+	&verbose(0,"*** Session Undo file removed after being processed. [$lastFile]\n");
+    }
+}
 
 sub undoRenames {
     for (my $i=$#rnDone; $i>=0; $i--) {
 	$rnDone[$i] =~ m/([^\:]+)\:(.*)$/;
 	my ($on, $nn) = ($1, $2);
-	if ($on eq $mkdirStr) {
-	    # Undo Created Dir (If Empty)
-	    my $dir = $nn;
-	    # regular files...
-	    push (my @files, glob $dir."*");
-	    # + hidden files...
-	    push (   @files, glob $dir.".*");
-	    # less . (currentDir) and .. (priorDir)
-	    @files = grep $_ !~ /\.{1,2}$/, @files;
-	    if ($#files < 0) {
-		rmdir $dir || die "*** Undo unlink dir failed! ($dir)\n";
-		&verbose(1,"Created Dir [$dir] was empty and was removed.\n");
-	    } else {
-		print "*** Failed to undo dir creation! Dir was not empty! ($dir)\n";
+	if ($testOpt) {
+	    if ($on eq $mkdirStr) {
+		&verbose(0, "Test Undo: Directory Creation [$nn].");
+	    } elsif (! -f $on) {
+		&verbose(0, "Test Undo: Rename [$nn back-to $on].\n");
 	    }
-	} elsif (! -f $on) {
-	    rename ($nn, $on) || die "Undo Rename failed! ($nn -> $on)\n";
-	    &verbose(1,"Rename was undone [$nn back-to $on].\n");
 	} else {
-	    # This should not occur.
-	    die "*** Undo Rename Failed, Existing file would be over-written and lost! ($on)";
+	    if ($on eq $mkdirStr) {
+		# Undo Created Dir (If Empty)
+		my $dir = $nn;
+		# regular files...
+		push (my @files, glob $dir."*");
+		# + hidden files...
+		push (   @files, glob $dir.".*");
+		# less . (currentDir) and .. (priorDir)
+		@files = grep $_ !~ /\.{1,2}$/, @files;
+		if ($#files < 0) {
+		    rmdir $dir || die "*** Undo unlink dir failed! ($dir)\n";
+		    &verbose(1,"Created Dir [$dir] was empty and was removed.\n");
+		} else {
+		    print "*** Failed to undo dir creation! Dir was not empty! ($dir)\n";
+		}
+	    } elsif (! -f $on) {
+		rename ($nn, $on) || die "Undo Rename failed! ($nn -> $on)\n";
+		&verbose(1,"Rename was undone [$nn back-to $on].\n");
+	    } else {
+		# This should not occur.
+		die "*** Undo Rename Failed, Existing file would be over-written and lost! ($on)";
+	    }
 	}
     }
     print "Rename Actions have been undone.\n";
@@ -703,7 +840,7 @@ sub checkDirs () {
 sub verbose {
     my ($lvl, $msg) = @_;
 
-    if ($verbOpt >= $lvl) {
+    if (($lvl == 0) || ($verbOpt >= $lvl)) {
 	print $msg;
     }
 }
