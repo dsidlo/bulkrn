@@ -27,6 +27,14 @@ bulkrn.pl - ReNumber Files  Version (0.0.2)
   renumber some portion of the file name, given the set of files that match
   the -f file pattern.
 
+  An additional level of safety is maintained with regard to file name
+  information through session level undo. Consider that a session is when
+  bulkrn.pl is called with the -go parameter. If all rename operations occur
+  successfully for that session, the undo script for that execution of
+  the bulkrn.pl program is saved out to a file in ~/.bulkrn/. Thus executing
+  "bulkrn.pl -undo" will rollback the operations of the most recent execution
+  of bulkrn.pl. By default, up to 10 prior sessions are saved may be undone.
+
   usage: bulkrn.pl [SourceDir]
                    [-a|-h|-t|-v-|-x] 
                    -f [FilePattern] 
@@ -35,6 +43,8 @@ bulkrn.pl - ReNumber Files  Version (0.0.2)
                    [-d [ZeroPaddedLength]]
                    [-c [SubstitutionPattern]]
                    [-go]
+		   [-noUndo]
+		   [-undo]
 
   If not specified [SourceDir] defaults to the current dir './'.
 
@@ -50,7 +60,7 @@ bulkrn.pl - ReNumber Files  Version (0.0.2)
   that your file pattern is picking up the files that you expect to rename. And,
   you can the how the file name splits up into its back-references.
 
-$ ./bulkrn.pl -f '(applog\.cluster\d+)(\.\d\d\d\d)(08\d\d)' 
+$ ./bulkrn.pl -f '(mwlog\.wfiejb\d+)(\.\d\d\d\d)(08\d\d)' 
 Testing the FilePattern...
 FilePattern Test: applog.cluster1.20100810 => (applog.cluster1) (.2010) (0810)
 FilePattern Test: applog.cluster1.20100811 => (applog.cluster1) (.2010) (0811)

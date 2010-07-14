@@ -1,10 +1,12 @@
 #!/bin/bash
 
+echo '***** Test Cleanup! *****'
 rm -f ./APPLOG.*
 rm -f ./applog.*
 rm -f ./mxlog.*
 rm -fr ./testdir
 rm -f lastTest.out
+rm -f ~/.bulkrn/undo_*
 
 if [ "$1" == "clean" ]
 then
@@ -166,6 +168,11 @@ then
     exit 1;
 fi
 
+echo '===== ./testdir ====='
 ls -aRF testdir
+echo '===== ~/bulkrn/undo_\* ====='
+ls ~/.bulkrn/undo_*
 
 ./run_tests.sh clean
+
+echo '***** Test Completed! *****'
